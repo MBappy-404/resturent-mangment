@@ -1,6 +1,7 @@
 import React from 'react';
-import { Bell, Search, Menu, ChevronDown } from 'lucide-react';
+import { Bell, Search, Menu, ChevronDown, LogOut } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { theme } = useTheme();
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-card/80 backdrop-blur-xl border-b border-border">
@@ -42,15 +44,23 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           </button>
 
           {/* User Profile */}
-          <button className="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors">
+          <div className="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-muted/50">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-sm font-semibold text-primary-foreground">A</span>
+              <span className="text-sm font-semibold text-primary-foreground">{user?.name?.charAt(0) || 'A'}</span>
             </div>
             <div className="hidden sm:flex flex-col items-start">
-              <span className="text-sm font-medium text-foreground">Admin</span>
-              <span className="text-xs text-muted-foreground">Super Admin</span>
+              <span className="text-sm font-medium text-foreground">{user?.name || 'Admin'}</span>
+              <span className="text-xs text-muted-foreground">{user?.role?.replace('_', ' ') || 'Super Admin'}</span>
             </div>
-            <ChevronDown className="w-4 h-4 text-muted-foreground hidden sm:block" />
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={logout}
+            className="p-2.5 rounded-xl bg-muted/50 hover:bg-destructive/10 hover:text-destructive transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </div>

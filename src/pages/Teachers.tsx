@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { teachers as initialTeachers } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -20,6 +21,35 @@ import { useToast } from '@/hooks/use-toast';
 const Teachers: React.FC = () => {
   const { toast } = useToast();
   const [teachers, setTeachers] = useState(initialTeachers);
+
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const res = await api.getTeachers();
+        const rawData = res.data as Record<string, unknown>;
+        const teacherList = Array.isArray(rawData) ? rawData : (rawData?.teachers || []) as Array<Record<string, unknown>>;
+        if (res.success && Array.isArray(teacherList) && teacherList.length > 0) {
+          const mapped = teacherList.map((t: Record<string, unknown>) => ({
+            id: (t._id || t.teacherId || '') as string,
+            name: (t.name || '') as string,
+            nameBn: (t.nameBn || '') as string,
+            designation: (t.designation || '') as string,
+            department: (t.department || '') as string,
+            phone: (t.phone || '') as string,
+            email: (t.email || '') as string,
+            joinDate: (t.joinDate ? new Date(t.joinDate as string).toISOString().split('T')[0] : '') as string,
+            salary: (t.salary || 0) as number,
+            status: (t.status || 'active') as 'active' | 'inactive',
+            gender: (t.gender || 'male') as 'male' | 'female',
+          }));
+          setTeachers(mapped);
+        }
+      } catch {
+        console.log('Using demo data (backend not available)');
+      }
+    };
+    fetchTeachers();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');

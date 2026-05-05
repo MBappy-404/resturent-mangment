@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -41,10 +41,46 @@ import {
   administrationMembers as initialMembers,
   type AdministrationMember,
 } from '@/data/administrationData';
+import api from '@/services/api';
 
 const Administration: React.FC = () => {
   const { toast } = useToast();
   const [members, setMembers] = useState<AdministrationMember[]>(initialMembers);
+
+  useEffect(() => {
+    const fetchAdmin = async () => {
+      try {
+        const res = await api.getAdministration();
+        if (res.success && Array.isArray(res.data)) {
+          const mapped = (res.data as Array<Record<string, unknown>>).map((m): AdministrationMember => ({
+            id: (m._id || '') as string,
+            name: (m.name || '') as string,
+            nameBn: (m.nameBn || '') as string,
+            designation: (m.designation || '') as string,
+            designationBn: (m.designationBn || '') as string,
+            category: (m.category || 'governing-body') as AdministrationMember['category'],
+            committeeRole: (m.committeeRole || '') as string,
+            phone: (m.phone || '') as string,
+            email: (m.email || '') as string,
+            address: (m.address || '') as string,
+            bio: (m.bio || '') as string,
+            qualifications: (m.qualifications || '') as string,
+            occupation: (m.occupation || '') as string,
+            occupationBn: (m.occupationBn || '') as string,
+            appointmentDate: (m.appointmentDate ? new Date(m.appointmentDate as string).toISOString().split('T')[0] : '') as string,
+            tenureEnd: m.tenureEnd ? new Date(m.tenureEnd as string).toISOString().split('T')[0] : undefined,
+            status: (m.status || 'active') as AdministrationMember['status'],
+            responsibilities: Array.isArray(m.responsibilities) ? m.responsibilities as string[] : [],
+            achievements: Array.isArray(m.achievements) ? m.achievements as string[] : [],
+          }));
+          setMembers(mapped);
+        }
+      } catch {
+        console.log('Using demo data (backend not available)');
+      }
+    };
+    fetchAdmin();
+  }, []);
   const [activeTab, setActiveTab] = useState<'director' | 'governing-body' | 'committee'>('director');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
