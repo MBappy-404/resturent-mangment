@@ -16,17 +16,12 @@ const seedData = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB Connected for seeding...');
 
-    // Clear existing data
-    await Promise.all([
-      User.deleteMany({}),
-      Student.deleteMany({}),
-      Teacher.deleteMany({}),
-      Staff.deleteMany({}),
-      Administration.deleteMany({}),
-      Subject.deleteMany({}),
-      ClassRoutine.deleteMany({}),
-      Notice.deleteMany({})
-    ]);
+    // Clear existing data and drop indexes to avoid stale unique constraints
+    const collections = [User, Student, Teacher, Staff, Administration, Subject, ClassRoutine, Notice];
+    for (const Model of collections) {
+      await Model.deleteMany({});
+      try { await Model.collection.dropIndexes(); } catch (e) { /* ignore if no indexes */ }
+    }
     console.log('Cleared existing data');
 
     // Create admin user
@@ -39,7 +34,7 @@ const seedData = async () => {
     });
     console.log('Admin user created: admin@school.edu.bd / password123');
 
-    // Create teachers
+    // Create teachers one by one (to trigger pre-save hook for auto ID)
     const teacherData = [
       { name: 'Md. Abdur Rahim', nameBn: 'মো. আব্দুর রহিম', designation: 'Head Teacher', department: 'Administration', subjects: ['Bangla', 'Bangladesh & Global Studies'], phone: '+880-1711-234567', email: 'rahim@school.edu.bd', gender: 'male', salary: 65000, qualifications: 'M.A. in Bangla, B.Ed', experience: 25 },
       { name: 'Ayesha Begum', nameBn: 'আয়েশা বেগম', designation: 'Assistant Head Teacher', department: 'English', subjects: ['English'], phone: '+880-1812-345678', email: 'ayesha@school.edu.bd', gender: 'female', salary: 55000, qualifications: 'M.A. in English, B.Ed', experience: 20 },
@@ -53,10 +48,14 @@ const seedData = async () => {
       { name: 'Lamia Haque', nameBn: 'লামিয়া হক', designation: 'Junior Teacher', department: 'Music', subjects: ['Music'], phone: '+880-1511-123456', gender: 'female', salary: 22000, qualifications: 'B.A. in Music', experience: 3 }
     ];
 
-    const teachers = await Teacher.insertMany(teacherData.map(t => ({ ...t, createdBy: admin._id })));
+    const teachers = [];
+    for (let i = 0; i < teacherData.length; i++) {
+      const t = await Teacher.create({ ...teacherData[i], teacherId: `TCH-${String(i + 1).padStart(4, '0')}`, createdBy: admin._id });
+      teachers.push(t);
+    }
     console.log(`${teachers.length} teachers created`);
 
-    // Create students
+    // Create students with explicit IDs
     const classes = ['Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10'];
     const sections = ['A', 'B'];
     const studentNames = [
@@ -73,32 +72,34 @@ const seedData = async () => {
     ];
 
     const students = [];
-    let rollCounter = 1;
+    let counter = 1;
     for (const cls of classes) {
       for (const sec of sections) {
         for (let i = 0; i < studentNames.length; i++) {
           students.push({
             ...studentNames[i],
+            studentId: `STU-${String(counter).padStart(5, '0')}`,
             fatherName: `${studentNames[i].name.split(' ')[1] || 'Ahmed'} Uddin`,
             motherName: `${studentNames[i].gender === 'male' ? 'Rahima' : 'Halima'} Begum`,
             guardianPhone: `+880-1${Math.floor(Math.random() * 9)}11-${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`,
             dateOfBirth: new Date(2008 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1),
             className: cls,
             section: sec,
-            roll: rollCounter++,
+            roll: counter,
             session: '2024',
             religion: 'Islam',
             address: { present: 'Chittagong, Bangladesh', permanent: 'Chittagong, Bangladesh' },
             status: 'active',
             createdBy: admin._id
           });
+          counter++;
         }
       }
     }
     await Student.insertMany(students);
     console.log(`${students.length} students created`);
 
-    // Create staff
+    // Create staff with explicit IDs
     const staffData = [
       { name: 'Rabeya Khatun', nameBn: 'রাবেয়া খাতুন', role: 'Librarian', category: 'Support', department: 'Library', phone: '+880-1611-012345', salary: 28000, qualifications: 'B.A., Diploma in Library Science' },
       { name: 'Shahidul Islam', nameBn: 'শহিদুল ইসলাম', role: 'Lab Assistant', category: 'Support', department: 'Science Lab', phone: '+880-1711-123456', salary: 22000, qualifications: 'H.S.C. (Science)' },
@@ -111,7 +112,7 @@ const seedData = async () => {
       { name: 'Fatema Begum', nameBn: 'ফাতেমা বেগম', role: 'Cleaner', category: 'Support', department: 'Maintenance', phone: '+880-1911-890123', salary: 10000, qualifications: 'Class 5' }
     ];
 
-    await Staff.insertMany(staffData.map(s => ({ ...s, status: 'active', createdBy: admin._id })));
+    await Staff.insertMany(staffData.map((s, i) => ({ ...s, staffId: `STF-${String(i + 1).padStart(4, '0')}`, status: 'active', createdBy: admin._id })));
     console.log(`${staffData.length} staff members created`);
 
     // Create administration members
@@ -131,7 +132,7 @@ const seedData = async () => {
     await Administration.insertMany(adminData.map(a => ({ ...a, createdBy: admin._id })));
     console.log(`${adminData.length} administration members created`);
 
-    // Create subjects
+    // Create subjects with explicit codes
     const subjectData = [
       { name: 'Bangla', nameBn: 'বাংলা', code: 'BNG-101', className: 'Class 6', type: 'compulsory' },
       { name: 'English', nameBn: 'ইংরেজি', code: 'ENG-101', className: 'Class 6', type: 'compulsory' },
@@ -162,7 +163,7 @@ const seedData = async () => {
     console.log('Admin login: admin@school.edu.bd / password123');
     process.exit(0);
   } catch (error) {
-    console.error('Seed Error:', error);
+    console.error('Seed Error:', error.message);
     process.exit(1);
   }
 };

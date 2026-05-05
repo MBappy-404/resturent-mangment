@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -39,10 +39,43 @@ import {
   departments,
   type StaffMember,
 } from '@/data/staffData';
+import api from '@/services/api';
 
 const SchoolStaff: React.FC = () => {
   const { toast } = useToast();
   const [staff, setStaff] = useState<StaffMember[]>(initialStaff);
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const res = await api.getStaff();
+        if (res.success && Array.isArray(res.data)) {
+          const mapped = (res.data as Array<Record<string, unknown>>).map((s): StaffMember => ({
+            id: (s._id || s.staffId || '') as string,
+            name: (s.name || '') as string,
+            nameBn: (s.nameBn || '') as string,
+            role: (s.role || '') as string,
+            roleBn: '',
+            department: (s.department || '') as string,
+            phone: (s.phone || '') as string,
+            email: (s.email || '') as string,
+            joinDate: (s.joinDate ? new Date(s.joinDate as string).toISOString().split('T')[0] : '') as string,
+            salary: (s.salary || 0) as number,
+            status: (s.status || 'active') as 'active' | 'inactive' | 'on-leave',
+            gender: (s.gender || 'male') as 'male' | 'female',
+            nid: (s.nid || '') as string,
+            address: (s.address || '') as string,
+            qualifications: (s.qualifications || '') as string,
+            responsibilities: Array.isArray(s.responsibilities) ? s.responsibilities as string[] : [],
+          }));
+          setStaff(mapped);
+        }
+      } catch {
+        console.log('Using demo data (backend not available)');
+      }
+    };
+    fetchStaff();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedDepartment, setSelectedDepartment] = useState('all');

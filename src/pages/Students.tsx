@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { students as initialStudents, classes, sections } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -23,6 +24,41 @@ const ITEMS_PER_PAGE = 10;
 const Students: React.FC = () => {
   const { toast } = useToast();
   const [students, setStudents] = useState(initialStudents);
+  const [apiLoaded, setApiLoaded] = useState(false);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await api.getStudents({ limit: '500' });
+        const rawData = res.data as Record<string, unknown>;
+        const studentList = Array.isArray(rawData) ? rawData : (rawData?.students || []) as Array<Record<string, unknown>>;
+        if (res.success && Array.isArray(studentList) && studentList.length > 0) {
+          const mapped = studentList.map((s: Record<string, unknown>) => ({
+            id: (s._id || s.studentId || '') as string,
+            name: (s.name || '') as string,
+            nameBn: (s.nameBn || '') as string,
+            roll: (s.roll || 0) as number,
+            class: (s.className || '') as string,
+            section: (s.section || 'A') as string,
+            gender: (s.gender || 'male') as 'male' | 'female',
+            dateOfBirth: (s.dateOfBirth ? new Date(s.dateOfBirth as string).toISOString().split('T')[0] : '') as string,
+            guardianName: (s.fatherName || '') as string,
+            guardianPhone: (s.guardianPhone || '') as string,
+            address: typeof s.address === 'object' && s.address ? ((s.address as Record<string, string>).present || '') : (s.address || '') as string,
+            status: (s.status || 'active') as 'active' | 'inactive',
+            admissionDate: (s.createdAt ? new Date(s.createdAt as string).toISOString().split('T')[0] : '') as string,
+            monthlyFee: 1500,
+            dueAmount: 0,
+          }));
+          setStudents(mapped);
+          setApiLoaded(true);
+        }
+      } catch {
+        console.log('Using demo data (backend not available)');
+      }
+    };
+    fetchStudents();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSection, setSelectedSection] = useState('all');
