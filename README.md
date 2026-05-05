@@ -1,146 +1,143 @@
-# Foodie Paradise — Restaurant Management System
+# EduManage — School Management System
 
-A comprehensive full-stack restaurant management system with an admin dashboard and customer-facing e-commerce website.
+A comprehensive, production-ready School Management System tailored for Bangladeshi educational institutions. Built with React, TypeScript, Tailwind CSS, and shadcn/ui.
 
 ## Features
 
-### Admin Dashboard
-- **Dashboard** — Real-time statistics, charts, recent orders, revenue tracking
-- **Menu Management** — Categories & items CRUD, pricing, availability, tags
-- **Order Management** — Create, track, update orders with status workflow
-- **Kitchen Display (KDS)** — Real-time order queue for kitchen staff
-- **Table Management** — Floor layout, status tracking, capacity management
-- **Reservations** — Booking management with status workflow
-- **Staff Management** — Employee profiles, roles, shifts, attendance
-- **Inventory** — Stock tracking, low-stock alerts, usage history
-- **Customers** — Customer database with order history
-- **Invoice Management** — Invoice generation and print support
-- **Reports & Analytics** — Sales, revenue, top items, order trends
-- **Organization Settings** — Restaurant info, tax, service charge, hours
-- **User Settings** — Profile, password, theme preferences
+### Core Modules
+- **Dashboard** — Real-time statistics, attendance charts, fee collection, notice board, today's schedule
+- **Student Management** — Student profiles, class/section assignment, guardian info, blood group, fee tracking
+- **Teacher Management** — Teacher profiles, department, designation, salary, status tracking
+- **Attendance** — Daily attendance marking by class/section, reports and charts
+- **Subjects** — Subject management with class-wise assignment
+- **Exams** — Exam schedule, result entry, grade sheet generation
+- **Fees** — Monthly fee collection, due tracking, payment history
+- **Library** — Book catalog, issue/return tracking
+- **Accounts** — Income/expense tracking, financial reports
 
-### E-Commerce (Customer Website)
-- **Homepage** — Hero banner, featured dishes, popular items, CTA
-- **Menu Browser** — Category filter, search, add to cart
-- **Food Detail** — Full item view, variants, addons, reviews
-- **Shopping Cart** — Drawer-based cart with quantity management
-- **Checkout** — Delivery/pickup, contact info, coupon, payment selection
-- **Order Tracking** — Real-time status tracking with timeline
-- **Customer Profile** — Account info, order stats, loyalty points
-- **Order History** — Past orders with status
-- **About & Contact** — Restaurant info, contact form
+### New Modules (Enhanced)
+
+#### Class Routine Management
+- Visual timetable grid with day/period layout
+- Color-coded subjects for easy identification
+- Add, edit, delete routine entries per class/section
+- Filter by class, section, and specific day
+- Tiffin and lunch break indicators
+- Export routine as CSV
+- 8 periods per day with break slots
+
+#### School Staff Management
+- Complete staff directory (teaching + non-teaching)
+- 14 role types: Head Teacher, Assistant Teacher, Librarian, Lab Assistant, Accountant, Guard, etc.
+- Staff categories: Teaching, Administrative, Support
+- Detailed profiles with NID, qualifications, responsibilities
+- Salary tracking and monthly salary overview
+- Status management: Active, Inactive, On Leave
+- Filter by category, department, status
+- CSV export functionality
+
+#### School Administration Management
+- **Directors**: Chairman, Vice Chairman, Head Teacher profiles
+- **Governing Body**: President, Secretary, Treasurer, Members
+  - Parent Representative, Teacher Representative, Community Member
+  - Education Expert, Infrastructure Committee
+- **Committees**: Exam Committee, Discipline Committee
+- Expandable profile cards with bio, qualifications, achievements
+- Appointment date and tenure tracking
+- Responsibilities listing per member
+- Tab-based navigation between Director/Governing Body/Committee views
+
+### Additional Modules
+- **ID Cards** — Digital ID card generation
+- **Guardian Portal** — Guardian profiles and contact info
+- **Diary** — Daily diary entries
+- **Notices** — School notice board with priority levels
+- **SMS** — SMS notification system
+- **Transport** — School transport management
+- **Certificates** — Certificate generation
+- **Calendar** — Academic calendar
+- **Alumni** — Alumni tracking
+- **Medical** — Student health records
+- **Scholarship** — Scholarship management
+- **Hostel** — Hostel management
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18 + Vite + Tailwind CSS v4 |
-| **Backend** | Node.js + Express.js |
-| **Database** | MongoDB (Mongoose ODM) |
-| **Auth** | JWT (dual: Admin + Customer) |
-| **Animations** | Framer Motion |
+| **Framework** | React 18 + TypeScript |
+| **Build Tool** | Vite |
+| **Styling** | Tailwind CSS 3 |
+| **UI Components** | shadcn/ui (Radix UI) |
 | **Charts** | Recharts |
 | **Icons** | Lucide React |
 | **Forms** | React Hook Form + Zod |
-| **Notifications** | React Hot Toast |
+| **Routing** | React Router DOM v6 |
+| **State** | TanStack Query |
 
-## Project Structure
+## Bangladesh Context
 
-```
-├── client/                    # React Frontend
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── layout/        # Admin layout (Sidebar, Topbar)
-│   │   │   ├── customer-layout/ # Customer layout (Navbar, Footer, CartDrawer)
-│   │   │   └── ui/            # Reusable UI (Modal, DataTable, Badge, etc.)
-│   │   ├── context/           # Auth, Cart, Theme contexts
-│   │   ├── pages/
-│   │   │   ├── admin/         # 15 admin pages
-│   │   │   └── customer/      # 10 customer pages
-│   │   ├── services/          # API service layer
-│   │   ├── App.jsx            # Main routing
-│   │   └── main.jsx           # Entry point
-│   └── package.json
-├── server/                    # Express Backend
-│   ├── controllers/           # 12 controllers
-│   ├── models/                # 17 MongoDB models
-│   ├── routes/                # 12 route files (80+ endpoints)
-│   ├── middleware/             # Auth, validation, error handling
-│   ├── utils/                 # Helpers
-│   └── package.json
-└── README.md
-```
+- Bangladeshi school class structure (Play, Nursery, KG, Class 1-10)
+- Bengali language labels throughout (বাংলা)
+- Bangladeshi names and addresses in demo data
+- Currency in BDT (৳)
+- School week: Sunday-Thursday + Saturday
+- Period structure matching BD school timing (8:00 AM - 2:20 PM)
+- Governing body structure per BD education regulations
+- NID-based staff identification
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- MongoDB Atlas account (or local MongoDB)
+- npm
 
 ### Installation
 
-1. **Clone the repository**
 ```bash
+# Clone the repository
 git clone https://github.com/MBappy-404/resturent-mangment.git
 cd resturent-mangment
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-2. **Set up environment variables**
-```bash
-cp .env.example server/.env
-# Edit server/.env with your MongoDB URI and JWT secret
+### Open in browser
+- http://localhost:5173
+
+## Project Structure
+
 ```
-
-3. **Install dependencies**
-```bash
-# Backend
-cd server && npm install
-
-# Frontend
-cd ../client && npm install
+src/
+├── components/
+│   ├── dashboard/        # Dashboard widgets (charts, stats, schedule)
+│   ├── layout/           # DashboardLayout, Sidebar, Header, MobileNav
+│   └── ui/               # shadcn/ui components (40+ components)
+├── contexts/             # ThemeContext
+├── data/                 # Demo data
+│   ├── demoData.ts       # Students, teachers, notices, stats
+│   ├── routineData.ts    # Class routine periods and entries
+│   ├── staffData.ts      # Staff members and roles
+│   └── administrationData.ts  # Directors, governing body, committees
+├── hooks/                # Custom hooks
+├── pages/                # 25 page components
+│   ├── Dashboard.tsx
+│   ├── Students.tsx
+│   ├── Teachers.tsx
+│   ├── ClassRoutine.tsx      # NEW
+│   ├── SchoolStaff.tsx       # NEW
+│   ├── Administration.tsx    # NEW
+│   └── ... (20 more pages)
+├── App.tsx               # Main routing
+└── main.tsx              # Entry point
 ```
-
-4. **Run development servers**
-```bash
-# Terminal 1 — Backend (port 5000)
-cd server && npm run dev
-
-# Terminal 2 — Frontend (port 3000)
-cd client && npm run dev
-```
-
-5. **Open in browser**
-- Customer site: http://localhost:3000
-- Admin panel: http://localhost:3000/admin
-
-### Demo Credentials
-```
-Admin: admin@restaurant.com / admin123
-```
-
-## API Endpoints
-
-The backend provides 80+ RESTful API endpoints:
-
-- `POST /api/auth/register` — Admin registration
-- `POST /api/auth/login` — Admin login
-- `CRUD /api/menu` — Menu items management
-- `CRUD /api/menu/categories` — Category management
-- `CRUD /api/orders` — Order management
-- `CRUD /api/tables` — Table management
-- `CRUD /api/reservations` — Reservation management
-- `CRUD /api/staff` — Staff management
-- `CRUD /api/inventory` — Inventory management
-- `CRUD /api/customers` — Customer management
-- `CRUD /api/invoices` — Invoice management
-- `GET /api/reports/*` — Reports & analytics
-- `CRUD /api/organization` — Organization settings
-- `POST /api/customer-auth/*` — Customer authentication
-- `GET /api/shop/*` — E-commerce public APIs
-
-## Database Models (17)
-
-User, CustomerUser, Organization, Branch, Category, MenuItem, Order, Table, Reservation, Staff, Inventory, Customer, Invoice, Review, Coupon, DeliveryZone, Notification
 
 ## License
 
