@@ -74,7 +74,7 @@ class ApiService {
   }
 
   async getProfile() {
-    return this.request('/auth/profile');
+    return this.request('/auth/me');
   }
 
   // Students
