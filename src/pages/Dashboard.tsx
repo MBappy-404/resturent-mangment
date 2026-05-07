@@ -26,11 +26,13 @@ const Dashboard: React.FC = () => {
     const fetchStats = async () => {
       try {
         const [studentsRes, teachersRes] = await Promise.all([
-          api.getStudents(),
-          api.getTeachers(),
+          api.getStudents({ limit: '500' }),
+          api.getTeachers({ limit: '500' }),
         ]);
-        const studentList = Array.isArray(studentsRes.data) ? studentsRes.data : [];
-        const teacherList = Array.isArray(teachersRes.data) ? teachersRes.data : [];
+        const sRaw = studentsRes.data as Record<string, unknown>;
+        const studentList = Array.isArray(sRaw) ? sRaw : (Array.isArray((sRaw as Record<string, unknown>)?.students) ? (sRaw as Record<string, unknown>).students as Array<Record<string, unknown>> : []);
+        const tRaw = teachersRes.data as Record<string, unknown>;
+        const teacherList = Array.isArray(tRaw) ? tRaw : (Array.isArray((tRaw as Record<string, unknown>)?.teachers) ? (tRaw as Record<string, unknown>).teachers as Array<Record<string, unknown>> : []);
         const activeStudents = studentList.filter((s: Record<string, unknown>) => s.status === 'active');
         setStats({
           totalStudents: studentList.length,

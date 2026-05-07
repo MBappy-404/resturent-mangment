@@ -29,9 +29,11 @@ const IDCards: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sRes, tRes] = await Promise.all([api.getStudents(), api.getTeachers()]);
-        const sData = Array.isArray(sRes.data) ? sRes.data : [];
-        const tData = Array.isArray(tRes.data) ? tRes.data : [];
+        const [sRes, tRes] = await Promise.all([api.getStudents({ limit: '500' }), api.getTeachers({ limit: '500' })]);
+        const sRaw = sRes.data as Record<string, unknown>;
+        const sData = Array.isArray(sRaw) ? sRaw : (Array.isArray((sRaw as Record<string, unknown>)?.students) ? (sRaw as Record<string, unknown>).students as Array<Record<string, unknown>> : []);
+        const tRaw = tRes.data as Record<string, unknown>;
+        const tData = Array.isArray(tRaw) ? tRaw : (Array.isArray((tRaw as Record<string, unknown>)?.teachers) ? (tRaw as Record<string, unknown>).teachers as Array<Record<string, unknown>> : []);
         setStudentData(sData.map((s: Record<string, unknown>) => ({
           id: (s._id || s.studentId || '') as string,
           name: (s.name || '') as string,

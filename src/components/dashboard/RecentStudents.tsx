@@ -21,7 +21,8 @@ export const RecentStudents: React.FC = () => {
     const fetchStudents = async () => {
       try {
         const res = await api.getStudents();
-        const data = Array.isArray(res.data) ? res.data : [];
+        const raw = res.data as Record<string, unknown>;
+        const data = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.students) ? (raw as Record<string, unknown>).students as Array<Record<string, unknown>> : []);
         const mapped = data.slice(0, 5).map((s: Record<string, unknown>) => ({
           id: (s._id || s.studentId || '') as string,
           name: (s.name || '') as string,

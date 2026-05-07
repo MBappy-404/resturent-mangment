@@ -46,7 +46,8 @@ const Notices: React.FC = () => {
     const fetchNotices = async () => {
       try {
         const res = await api.getNotices();
-        const data = Array.isArray(res.data) ? res.data : [];
+        const raw = res.data as Record<string, unknown>;
+        const data = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.notices) ? (raw as Record<string, unknown>).notices as Array<Record<string, unknown>> : []);
         setNotices(data.map((n: Record<string, unknown>) => ({
           id: (n._id || '') as string,
           title: (n.title || '') as string,
