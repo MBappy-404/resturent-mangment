@@ -106,41 +106,57 @@ const Students: React.FC = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.class) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    // Validate group for Class 9 & 10
     if (isHigherClass(formData.class) && !formData.group) {
       toast({ title: "Error", description: "Please select a group for Class 9/10", variant: "destructive" });
       return;
     }
-    const newStudent = {
-      id: `STU${Date.now()}`,
-      name: formData.name,
-      nameBn: formData.name,
-      class: formData.class,
-      section: formData.section || 'A',
-      group: isHigherClass(formData.class) ? formData.group : undefined,
-      roll: students.length + 1,
-      gender: 'male' as const,
-      dateOfBirth: '2010-01-01',
-      guardianName: formData.guardianName,
-      guardianPhone: formData.guardianPhone,
-      address: 'Chittagong, Bangladesh',
-      status: formData.status as 'active' | 'inactive',
-      dueAmount: 0,
-      monthlyFee: 1500,
-      admissionDate: new Date().toISOString().split('T')[0]
-    };
-    setStudents([newStudent, ...students]);
-    toast({ title: "Success", description: `Student "${formData.name}" added successfully!` });
-    resetForm();
-    setAddDialogOpen(false);
+    try {
+      const apiData = {
+        name: formData.name,
+        className: formData.class,
+        section: formData.section || 'A',
+        fatherName: formData.guardianName,
+        guardianPhone: formData.guardianPhone,
+        status: formData.status,
+        gender: 'male',
+        roll: students.length + 1,
+      };
+      const res = await api.createStudent(apiData);
+      if (res.success) {
+        const s = res.data as Record<string, unknown>;
+        const newStudent = {
+          id: (s._id || s.studentId || '') as string,
+          name: (s.name || '') as string,
+          nameBn: (s.nameBn || '') as string,
+          roll: (s.roll || 0) as number,
+          class: (s.className || '') as string,
+          section: (s.section || 'A') as string,
+          gender: (s.gender || 'male') as 'male' | 'female',
+          dateOfBirth: '',
+          guardianName: (s.fatherName || '') as string,
+          guardianPhone: (s.guardianPhone || '') as string,
+          address: '',
+          status: (s.status || 'active') as 'active' | 'inactive',
+          admissionDate: new Date().toISOString().split('T')[0],
+          monthlyFee: 1500,
+          dueAmount: 0,
+        };
+        setStudents([newStudent, ...students]);
+        toast({ title: "Success", description: `Student "${formData.name}" added successfully!` });
+        resetForm();
+        setAddDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to add student', variant: "destructive" });
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedStudent || !formData.name || !formData.class) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
@@ -150,32 +166,50 @@ const Students: React.FC = () => {
       toast({ title: "Error", description: "Please select a group for Class 9/10", variant: "destructive" });
       return;
     }
-    setStudents(students.map(s => 
-      s.id === selectedStudent.id 
-        ? { 
-            ...s, 
-            name: formData.name, 
-            class: formData.class, 
-            section: formData.section || s.section, 
-            group: isHigherClass(formData.class) ? formData.group : undefined,
-            guardianName: formData.guardianName, 
-            guardianPhone: formData.guardianPhone, 
-            status: formData.status as 'active' | 'inactive' 
-          }
-        : s
-    ));
-    toast({ title: "Success", description: `Student "${formData.name}" updated successfully!` });
-    resetForm();
-    setEditDialogOpen(false);
-    setSelectedStudent(null);
+    try {
+      const apiData = {
+        name: formData.name,
+        className: formData.class,
+        section: formData.section || selectedStudent.section,
+        fatherName: formData.guardianName,
+        guardianPhone: formData.guardianPhone,
+        status: formData.status,
+      };
+      await api.updateStudent(selectedStudent.id, apiData);
+      setStudents(students.map(s => 
+        s.id === selectedStudent.id 
+          ? { 
+              ...s, 
+              name: formData.name, 
+              class: formData.class, 
+              section: formData.section || s.section, 
+              group: isHigherClass(formData.class) ? formData.group : undefined,
+              guardianName: formData.guardianName, 
+              guardianPhone: formData.guardianPhone, 
+              status: formData.status as 'active' | 'inactive' 
+            }
+          : s
+      ));
+      toast({ title: "Success", description: `Student "${formData.name}" updated successfully!` });
+      resetForm();
+      setEditDialogOpen(false);
+      setSelectedStudent(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to update student', variant: "destructive" });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedStudent) return;
-    setStudents(students.filter(s => s.id !== selectedStudent.id));
-    toast({ title: "Deleted", description: `Student "${selectedStudent.name}" deleted successfully!` });
-    setDeleteDialogOpen(false);
-    setSelectedStudent(null);
+    try {
+      await api.deleteStudent(selectedStudent.id);
+      setStudents(students.filter(s => s.id !== selectedStudent.id));
+      toast({ title: "Deleted", description: `Student "${selectedStudent.name}" deleted successfully!` });
+      setDeleteDialogOpen(false);
+      setSelectedStudent(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to delete student', variant: "destructive" });
+    }
   };
 
   const openEditDialog = (student: typeof students[0]) => {

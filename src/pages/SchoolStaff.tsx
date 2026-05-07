@@ -153,99 +153,116 @@ const SchoolStaff: React.FC = () => {
     };
   }, [staff]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.phone) {
-      toast({
-        title: 'Error',
-        description: 'Please fill required fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
-    const roleInfo = staffRoles.find((r) => r.role === formData.role);
-    const newStaff: StaffMember = {
-      id: `STF${Date.now()}`,
-      name: formData.name,
-      nameBn: formData.nameBn || formData.name,
-      role: formData.role,
-      roleBn: roleInfo?.roleBn || formData.role,
-      department: formData.department,
-      phone: formData.phone,
-      email: formData.email,
-      joinDate: new Date().toISOString().split('T')[0],
-      salary: parseInt(formData.salary) || 15000,
-      status: formData.status as StaffMember['status'],
-      gender: 'male',
-      nid: formData.nid,
-      address: formData.address,
-      qualifications: formData.qualifications,
-      responsibilities: formData.responsibilities
-        .split(',')
-        .map((r) => r.trim())
-        .filter(Boolean),
-    };
-    setStaff([newStaff, ...staff]);
-    toast({
-      title: 'Success',
-      description: `Staff member "${formData.name}" added successfully!`,
-    });
-    resetForm();
-    setAddDialogOpen(false);
+    try {
+      const roleInfo = staffRoles.find((r) => r.role === formData.role);
+      const apiData = {
+        name: formData.name,
+        nameBn: formData.nameBn || formData.name,
+        role: formData.role,
+        category: roleInfo?.category || 'Support',
+        department: formData.department,
+        phone: formData.phone,
+        email: formData.email,
+        salary: parseInt(formData.salary) || 15000,
+        status: formData.status,
+        gender: 'male',
+        nid: formData.nid,
+        address: formData.address,
+        qualifications: formData.qualifications,
+        responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+      };
+      const res = await api.createStaff(apiData);
+      if (res.success) {
+        const s = res.data as Record<string, unknown>;
+        const newStaff: StaffMember = {
+          id: (s._id || s.staffId || '') as string,
+          name: (s.name || '') as string,
+          nameBn: (s.nameBn || '') as string,
+          role: (s.role || '') as string,
+          roleBn: roleInfo?.roleBn || '',
+          department: (s.department || '') as string,
+          phone: (s.phone || '') as string,
+          email: (s.email || '') as string,
+          joinDate: new Date().toISOString().split('T')[0],
+          salary: (s.salary || 0) as number,
+          status: (s.status || 'active') as StaffMember['status'],
+          gender: (s.gender || 'male') as 'male' | 'female',
+          nid: (s.nid || '') as string,
+          address: (s.address || '') as string,
+          qualifications: (s.qualifications || '') as string,
+          responsibilities: Array.isArray(s.responsibilities) ? s.responsibilities as string[] : [],
+        };
+        setStaff([newStaff, ...staff]);
+        toast({ title: 'Success', description: `Staff member "${formData.name}" added successfully!` });
+        resetForm();
+        setAddDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to add staff', variant: 'destructive' });
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedStaff || !formData.name) {
-      toast({
-        title: 'Error',
-        description: 'Please fill required fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
-    const roleInfo = staffRoles.find((r) => r.role === formData.role);
-    setStaff(
-      staff.map((s) =>
-        s.id === selectedStaff.id
-          ? {
-              ...s,
-              name: formData.name,
-              nameBn: formData.nameBn || formData.name,
-              role: formData.role,
-              roleBn: roleInfo?.roleBn || formData.role,
-              department: formData.department,
-              phone: formData.phone,
-              email: formData.email,
-              salary: parseInt(formData.salary) || s.salary,
-              status: formData.status as StaffMember['status'],
-              nid: formData.nid,
-              address: formData.address,
-              qualifications: formData.qualifications,
-              responsibilities: formData.responsibilities
-                .split(',')
-                .map((r) => r.trim())
-                .filter(Boolean),
-            }
-          : s
-      )
-    );
-    toast({
-      title: 'Success',
-      description: `Staff member "${formData.name}" updated!`,
-    });
-    resetForm();
-    setEditDialogOpen(false);
-    setSelectedStaff(null);
+    try {
+      const roleInfo = staffRoles.find((r) => r.role === formData.role);
+      const apiData = {
+        name: formData.name,
+        nameBn: formData.nameBn || formData.name,
+        role: formData.role,
+        department: formData.department,
+        phone: formData.phone,
+        email: formData.email,
+        salary: parseInt(formData.salary) || undefined,
+        status: formData.status,
+        nid: formData.nid,
+        address: formData.address,
+        qualifications: formData.qualifications,
+        responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+      };
+      await api.updateStaff(selectedStaff.id, apiData);
+      setStaff(
+        staff.map((s) =>
+          s.id === selectedStaff.id
+            ? {
+                ...s, name: formData.name, nameBn: formData.nameBn || formData.name,
+                role: formData.role, roleBn: roleInfo?.roleBn || formData.role,
+                department: formData.department, phone: formData.phone, email: formData.email,
+                salary: parseInt(formData.salary) || s.salary, status: formData.status as StaffMember['status'],
+                nid: formData.nid, address: formData.address, qualifications: formData.qualifications,
+                responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+              }
+            : s
+        )
+      );
+      toast({ title: 'Success', description: `Staff member "${formData.name}" updated!` });
+      resetForm();
+      setEditDialogOpen(false);
+      setSelectedStaff(null);
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to update staff', variant: 'destructive' });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedStaff) return;
-    setStaff(staff.filter((s) => s.id !== selectedStaff.id));
-    toast({
-      title: 'Deleted',
-      description: `"${selectedStaff.name}" removed from staff list.`,
-    });
-    setDeleteDialogOpen(false);
-    setSelectedStaff(null);
+    try {
+      await api.deleteStaff(selectedStaff.id);
+      setStaff(staff.filter((s) => s.id !== selectedStaff.id));
+      toast({ title: 'Deleted', description: `"${selectedStaff.name}" removed from staff list.` });
+      setDeleteDialogOpen(false);
+      setSelectedStaff(null);
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to delete staff', variant: 'destructive' });
+    }
   };
 
   const openEditDialog = (member: StaffMember) => {

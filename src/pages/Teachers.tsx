@@ -89,52 +89,89 @@ const Teachers: React.FC = () => {
     });
   }, [teachers, searchQuery, selectedDepartment, selectedStatus]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.email || !formData.department) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    const newTeacher = {
-      id: `TCH${Date.now()}`,
-      name: formData.name,
-      nameBn: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      department: formData.department,
-      designation: formData.designation || 'Teacher',
-      salary: parseInt(formData.salary) || 25000,
-      status: formData.status as 'active' | 'inactive',
-      joinDate: new Date().toISOString().split('T')[0],
-      gender: 'male' as const
-    };
-    setTeachers([newTeacher, ...teachers]);
-    toast({ title: "Success", description: `Teacher "${formData.name}" added successfully!` });
-    resetForm();
-    setAddDialogOpen(false);
+    try {
+      const apiData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        designation: formData.designation || 'Assistant Teacher',
+        salary: parseInt(formData.salary) || 25000,
+        status: formData.status,
+        gender: 'male',
+      };
+      const res = await api.createTeacher(apiData);
+      if (res.success) {
+        const t = res.data as Record<string, unknown>;
+        const newTeacher = {
+          id: (t._id || t.teacherId || '') as string,
+          name: (t.name || '') as string,
+          nameBn: (t.nameBn || '') as string,
+          email: (t.email || '') as string,
+          phone: (t.phone || '') as string,
+          department: (t.department || '') as string,
+          designation: (t.designation || '') as string,
+          salary: (t.salary || 0) as number,
+          status: (t.status || 'active') as 'active' | 'inactive',
+          joinDate: new Date().toISOString().split('T')[0],
+          gender: (t.gender || 'male') as 'male' | 'female',
+        };
+        setTeachers([newTeacher, ...teachers]);
+        toast({ title: "Success", description: `Teacher "${formData.name}" added successfully!` });
+        resetForm();
+        setAddDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to add teacher', variant: "destructive" });
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedTeacher || !formData.name || !formData.email) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    setTeachers(teachers.map(t => 
-      t.id === selectedTeacher.id 
-        ? { ...t, name: formData.name, email: formData.email, phone: formData.phone, department: formData.department, designation: formData.designation, salary: parseInt(formData.salary) || t.salary, status: formData.status as 'active' | 'inactive' }
-        : t
-    ));
-    toast({ title: "Success", description: `Teacher "${formData.name}" updated successfully!` });
-    resetForm();
-    setEditDialogOpen(false);
-    setSelectedTeacher(null);
+    try {
+      const apiData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        designation: formData.designation,
+        salary: parseInt(formData.salary) || undefined,
+        status: formData.status,
+      };
+      await api.updateTeacher(selectedTeacher.id, apiData);
+      setTeachers(teachers.map(t => 
+        t.id === selectedTeacher.id 
+          ? { ...t, name: formData.name, email: formData.email, phone: formData.phone, department: formData.department, designation: formData.designation, salary: parseInt(formData.salary) || t.salary, status: formData.status as 'active' | 'inactive' }
+          : t
+      ));
+      toast({ title: "Success", description: `Teacher "${formData.name}" updated successfully!` });
+      resetForm();
+      setEditDialogOpen(false);
+      setSelectedTeacher(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to update teacher', variant: "destructive" });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedTeacher) return;
-    setTeachers(teachers.filter(t => t.id !== selectedTeacher.id));
-    toast({ title: "Deleted", description: `Teacher "${selectedTeacher.name}" deleted successfully!` });
-    setDeleteDialogOpen(false);
-    setSelectedTeacher(null);
+    try {
+      await api.deleteTeacher(selectedTeacher.id);
+      setTeachers(teachers.filter(t => t.id !== selectedTeacher.id));
+      toast({ title: "Deleted", description: `Teacher "${selectedTeacher.name}" deleted successfully!` });
+      setDeleteDialogOpen(false);
+      setSelectedTeacher(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to delete teacher', variant: "destructive" });
+    }
   };
 
   const openEditDialog = (teacher: typeof teachers[0]) => {

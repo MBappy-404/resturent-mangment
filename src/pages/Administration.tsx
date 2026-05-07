@@ -151,78 +151,125 @@ const Administration: React.FC = () => {
     active: members.filter((m) => m.status === 'active').length,
   }), [members]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.name || !formData.designation) {
       toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
-    const newMember: AdministrationMember = {
-      id: `ADM${Date.now()}`,
-      name: formData.name,
-      nameBn: formData.nameBn || formData.name,
-      designation: formData.designation,
-      designationBn: formData.designationBn || formData.designation,
-      category: formData.category,
-      committeeRole: formData.committeeRole || undefined,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      bio: formData.bio,
-      qualifications: formData.qualifications,
-      occupation: formData.occupation,
-      occupationBn: formData.occupationBn || formData.occupation,
-      appointmentDate: formData.appointmentDate || new Date().toISOString().split('T')[0],
-      tenureEnd: formData.tenureEnd || undefined,
-      status: formData.status,
-      responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
-    };
-    setMembers([...members, newMember]);
-    toast({ title: 'Success', description: `${formData.name} added to ${activeTab === 'director' ? 'Directors' : activeTab === 'governing-body' ? 'Governing Body' : 'Committee'}` });
-    resetForm();
-    setAddDialogOpen(false);
+    try {
+      const apiData = {
+        name: formData.name,
+        nameBn: formData.nameBn || formData.name,
+        designation: formData.designation,
+        designationBn: formData.designationBn || formData.designation,
+        category: formData.category,
+        committeeRole: formData.committeeRole || undefined,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        bio: formData.bio,
+        qualifications: formData.qualifications,
+        occupation: formData.occupation,
+        occupationBn: formData.occupationBn || formData.occupation,
+        appointmentDate: formData.appointmentDate || new Date().toISOString().split('T')[0],
+        tenureEnd: formData.tenureEnd || undefined,
+        status: formData.status,
+        responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+      };
+      const res = await api.createAdministration(apiData);
+      if (res.success) {
+        const d = res.data as Record<string, unknown>;
+        const newMember: AdministrationMember = {
+          id: (d._id || '') as string,
+          name: (d.name || '') as string,
+          nameBn: (d.nameBn || '') as string,
+          designation: (d.designation || '') as string,
+          designationBn: (d.designationBn || '') as string,
+          category: (d.category || activeTab) as AdministrationMember['category'],
+          committeeRole: (d.committeeRole || undefined) as string | undefined,
+          phone: (d.phone || '') as string,
+          email: (d.email || '') as string,
+          address: (d.address || '') as string,
+          bio: (d.bio || '') as string,
+          qualifications: (d.qualifications || '') as string,
+          occupation: (d.occupation || '') as string,
+          occupationBn: (d.occupationBn || '') as string,
+          appointmentDate: (d.appointmentDate || '') as string,
+          tenureEnd: (d.tenureEnd || undefined) as string | undefined,
+          status: (d.status || 'active') as AdministrationMember['status'],
+          responsibilities: Array.isArray(d.responsibilities) ? d.responsibilities as string[] : [],
+        };
+        setMembers([...members, newMember]);
+        toast({ title: 'Success', description: `${formData.name} added to ${activeTab === 'director' ? 'Directors' : activeTab === 'governing-body' ? 'Governing Body' : 'Committee'}` });
+        resetForm();
+        setAddDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to add member', variant: 'destructive' });
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedMember || !formData.name) {
       toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
-    setMembers(members.map((m) =>
-      m.id === selectedMember.id
-        ? {
-            ...m,
-            name: formData.name,
-            nameBn: formData.nameBn || formData.name,
-            designation: formData.designation,
-            designationBn: formData.designationBn || formData.designation,
-            category: formData.category,
-            committeeRole: formData.committeeRole || undefined,
-            phone: formData.phone,
-            email: formData.email,
-            address: formData.address,
-            bio: formData.bio,
-            qualifications: formData.qualifications,
-            occupation: formData.occupation,
-            occupationBn: formData.occupationBn || formData.occupation,
-            appointmentDate: formData.appointmentDate,
-            tenureEnd: formData.tenureEnd || undefined,
-            status: formData.status,
-            responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
-          }
-        : m
-    ));
-    toast({ title: 'Success', description: `${formData.name} updated successfully` });
-    resetForm();
-    setEditDialogOpen(false);
-    setSelectedMember(null);
+    try {
+      const apiData = {
+        name: formData.name,
+        nameBn: formData.nameBn || formData.name,
+        designation: formData.designation,
+        designationBn: formData.designationBn || formData.designation,
+        category: formData.category,
+        committeeRole: formData.committeeRole || undefined,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        bio: formData.bio,
+        qualifications: formData.qualifications,
+        occupation: formData.occupation,
+        occupationBn: formData.occupationBn || formData.occupation,
+        appointmentDate: formData.appointmentDate,
+        tenureEnd: formData.tenureEnd || undefined,
+        status: formData.status,
+        responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+      };
+      await api.updateAdministration(selectedMember.id, apiData);
+      setMembers(members.map((m) =>
+        m.id === selectedMember.id
+          ? {
+              ...m, name: formData.name, nameBn: formData.nameBn || formData.name,
+              designation: formData.designation, designationBn: formData.designationBn || formData.designation,
+              category: formData.category, committeeRole: formData.committeeRole || undefined,
+              phone: formData.phone, email: formData.email, address: formData.address,
+              bio: formData.bio, qualifications: formData.qualifications,
+              occupation: formData.occupation, occupationBn: formData.occupationBn || formData.occupation,
+              appointmentDate: formData.appointmentDate, tenureEnd: formData.tenureEnd || undefined,
+              status: formData.status,
+              responsibilities: formData.responsibilities.split(',').map((r) => r.trim()).filter(Boolean),
+            }
+          : m
+      ));
+      toast({ title: 'Success', description: `${formData.name} updated successfully` });
+      resetForm();
+      setEditDialogOpen(false);
+      setSelectedMember(null);
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to update member', variant: 'destructive' });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedMember) return;
-    setMembers(members.filter((m) => m.id !== selectedMember.id));
-    toast({ title: 'Deleted', description: `${selectedMember.name} removed` });
-    setDeleteDialogOpen(false);
-    setSelectedMember(null);
+    try {
+      await api.deleteAdministration(selectedMember.id);
+      setMembers(members.filter((m) => m.id !== selectedMember.id));
+      toast({ title: 'Deleted', description: `${selectedMember.name} removed` });
+      setDeleteDialogOpen(false);
+      setSelectedMember(null);
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to delete member', variant: 'destructive' });
+    }
   };
 
   const openEditDialog = (member: AdministrationMember) => {
