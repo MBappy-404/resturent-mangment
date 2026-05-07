@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Download, 
@@ -12,7 +12,7 @@ import {
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { students, teachers } from '@/data/demoData';
+import api from '@/services/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,34 @@ const IDCards: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewItem, setPreviewItem] = useState<any>(null);
 
-  const data = selectedType === 'students' ? students.slice(0, 50) : teachers;
+  const [studentData, setStudentData] = useState<{ id: string; name: string; class?: string; section?: string; department?: string; status: string }[]>([]);
+  const [teacherData, setTeacherData] = useState<{ id: string; name: string; class?: string; section?: string; department?: string; status: string }[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [sRes, tRes] = await Promise.all([api.getStudents(), api.getTeachers()]);
+        const sData = Array.isArray(sRes.data) ? sRes.data : [];
+        const tData = Array.isArray(tRes.data) ? tRes.data : [];
+        setStudentData(sData.map((s: Record<string, unknown>) => ({
+          id: (s._id || s.studentId || '') as string,
+          name: (s.name || '') as string,
+          class: (s.className || '') as string,
+          section: (s.section || '') as string,
+          status: (s.status || 'active') as string,
+        })));
+        setTeacherData(tData.map((t: Record<string, unknown>) => ({
+          id: (t._id || t.teacherId || '') as string,
+          name: (t.name || '') as string,
+          department: (t.department || '') as string,
+          status: (t.status || 'active') as string,
+        })));
+      } catch { /* empty */ }
+    };
+    fetchData();
+  }, []);
+
+  const data = selectedType === 'students' ? studentData : teacherData;
 
   const filteredData = data.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

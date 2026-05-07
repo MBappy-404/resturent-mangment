@@ -1,11 +1,43 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MoreHorizontal, Eye, Edit, Phone } from 'lucide-react';
-import { students } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
+interface Student {
+  id: string;
+  name: string;
+  class: string;
+  section: string;
+  guardianName: string;
+  guardianPhone: string;
+  status: string;
+}
+
 export const RecentStudents: React.FC = () => {
-  const recentStudents = students.slice(0, 5);
+  const [recentStudents, setRecentStudents] = useState<Student[]>([]);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await api.getStudents();
+        const data = Array.isArray(res.data) ? res.data : [];
+        const mapped = data.slice(0, 5).map((s: Record<string, unknown>) => ({
+          id: (s._id || s.studentId || '') as string,
+          name: (s.name || '') as string,
+          class: (s.className || '') as string,
+          section: (s.section || '') as string,
+          guardianName: (s.fatherName || '') as string,
+          guardianPhone: (s.guardianPhone || '') as string,
+          status: (s.status || 'active') as string,
+        }));
+        setRecentStudents(mapped);
+      } catch {
+        // fallback empty
+      }
+    };
+    fetchStudents();
+  }, []);
 
   return (
     <div className="bg-card rounded-2xl p-6 border border-border/50 animate-fade-in">

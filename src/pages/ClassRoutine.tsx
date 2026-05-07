@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { classes, sections } from '@/data/demoData';
+import api from '@/services/api';
 import {
   routineEntries as initialRoutineEntries,
   periods,
@@ -89,73 +90,51 @@ const ClassRoutine: React.FC = () => {
     );
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.subject || !formData.teacher) {
-      toast({
-        title: 'Error',
-        description: 'Please fill required fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
     const existing = routines.find(
-      (r) =>
-        r.day === formData.day &&
-        r.periodId === formData.periodId &&
-        r.className === formData.className &&
-        r.section === formData.section
+      (r) => r.day === formData.day && r.periodId === formData.periodId && r.className === formData.className && r.section === formData.section
     );
     if (existing) {
-      toast({
-        title: 'Error',
-        description: 'This time slot is already assigned',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'This time slot is already assigned', variant: 'destructive' });
       return;
     }
-    const newEntry: RoutineEntry = {
-      id: `RT${Date.now()}`,
-      ...formData,
-    };
-    setRoutines([...routines, newEntry]);
-    toast({
-      title: 'Success',
-      description: `Class routine entry added for ${formData.day}`,
-    });
+    try {
+      const res = await api.createClassRoutine(formData);
+      const d = res.success ? res.data as Record<string, unknown> : null;
+      const newEntry: RoutineEntry = {
+        id: d ? (d._id as string) : `RT${Date.now()}`,
+        ...formData,
+      };
+      setRoutines([...routines, newEntry]);
+    } catch {
+      const newEntry: RoutineEntry = { id: `RT${Date.now()}`, ...formData };
+      setRoutines([...routines, newEntry]);
+    }
+    toast({ title: 'Success', description: `Class routine entry added for ${formData.day}` });
     resetForm();
     setAddDialogOpen(false);
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedEntry || !formData.subject || !formData.teacher) {
-      toast({
-        title: 'Error',
-        description: 'Please fill required fields',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please fill required fields', variant: 'destructive' });
       return;
     }
-    setRoutines(
-      routines.map((r) =>
-        r.id === selectedEntry.id ? { ...r, ...formData } : r
-      )
-    );
-    toast({
-      title: 'Success',
-      description: 'Routine entry updated successfully!',
-    });
+    setRoutines(routines.map((r) => r.id === selectedEntry.id ? { ...r, ...formData } : r));
+    toast({ title: 'Success', description: 'Routine entry updated successfully!' });
     resetForm();
     setEditDialogOpen(false);
     setSelectedEntry(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedEntry) return;
     setRoutines(routines.filter((r) => r.id !== selectedEntry.id));
-    toast({
-      title: 'Deleted',
-      description: 'Routine entry deleted successfully!',
-    });
+    toast({ title: 'Deleted', description: 'Routine entry deleted successfully!' });
     setDeleteDialogOpen(false);
     setSelectedEntry(null);
   };

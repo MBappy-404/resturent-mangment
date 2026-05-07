@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Bell, 
@@ -12,7 +12,7 @@ import {
   Megaphone
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { notices as initialNotices } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -40,7 +40,26 @@ const typeStyles = {
 
 const Notices: React.FC = () => {
   const { toast } = useToast();
-  const [notices, setNotices] = useState(initialNotices);
+  const [notices, setNotices] = useState<{ id: string; title: string; titleBn: string; content: string; type: 'general' | 'exam' | 'holiday' | 'event'; priority: 'high' | 'medium' | 'low'; date: string }[]>([]);
+
+  useEffect(() => {
+    const fetchNotices = async () => {
+      try {
+        const res = await api.getNotices();
+        const data = Array.isArray(res.data) ? res.data : [];
+        setNotices(data.map((n: Record<string, unknown>) => ({
+          id: (n._id || '') as string,
+          title: (n.title || '') as string,
+          titleBn: (n.titleBn || '') as string,
+          content: (n.content || '') as string,
+          type: (n.type || 'general') as 'general' | 'exam' | 'holiday' | 'event',
+          priority: (n.priority || 'medium') as 'high' | 'medium' | 'low',
+          date: n.date ? new Date(n.date as string).toISOString().split('T')[0] : '',
+        })));
+      } catch { /* empty */ }
+    };
+    fetchNotices();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
 
@@ -68,48 +87,58 @@ const Notices: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.title || !formData.content) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    const newNotice = {
-      id: `NOT${Date.now()}`,
-      title: formData.title,
-      titleBn: formData.title,
-      content: formData.content,
-      type: formData.type,
-      priority: formData.priority,
-      date: new Date().toISOString().split('T')[0]
-    };
-    setNotices([newNotice, ...notices]);
-    toast({ title: "Success", description: `Notice "${formData.title}" created successfully!` });
-    resetForm();
-    setAddDialogOpen(false);
+    try {
+      const res = await api.createNotice({ title: formData.title, content: formData.content, type: formData.type, priority: formData.priority });
+      if (res.success) {
+        const d = res.data as Record<string, unknown>;
+        const newNotice = { id: (d._id || '') as string, title: (d.title || '') as string, titleBn: (d.titleBn || '') as string, content: (d.content || '') as string, type: (d.type || 'general') as 'general' | 'exam' | 'holiday' | 'event', priority: (d.priority || 'medium') as 'high' | 'medium' | 'low', date: new Date().toISOString().split('T')[0] };
+        setNotices([newNotice, ...notices]);
+        toast({ title: "Success", description: `Notice "${formData.title}" created successfully!` });
+        resetForm();
+        setAddDialogOpen(false);
+      }
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to create notice', variant: "destructive" });
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedNotice || !formData.title || !formData.content) {
       toast({ title: "Error", description: "Please fill required fields", variant: "destructive" });
       return;
     }
-    setNotices(notices.map(n => 
-      n.id === selectedNotice.id 
-        ? { ...n, title: formData.title, content: formData.content, type: formData.type, priority: formData.priority }
-        : n
-    ));
-    toast({ title: "Success", description: `Notice "${formData.title}" updated successfully!` });
-    resetForm();
-    setEditDialogOpen(false);
-    setSelectedNotice(null);
+    try {
+      await api.updateNotice(selectedNotice.id, { title: formData.title, content: formData.content, type: formData.type, priority: formData.priority });
+      setNotices(notices.map(n => 
+        n.id === selectedNotice.id 
+          ? { ...n, title: formData.title, content: formData.content, type: formData.type, priority: formData.priority }
+          : n
+      ));
+      toast({ title: "Success", description: `Notice "${formData.title}" updated successfully!` });
+      resetForm();
+      setEditDialogOpen(false);
+      setSelectedNotice(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to update notice', variant: "destructive" });
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedNotice) return;
-    setNotices(notices.filter(n => n.id !== selectedNotice.id));
-    toast({ title: "Deleted", description: `Notice "${selectedNotice.title}" deleted successfully!` });
-    setDeleteDialogOpen(false);
-    setSelectedNotice(null);
+    try {
+      await api.deleteNotice(selectedNotice.id);
+      setNotices(notices.filter(n => n.id !== selectedNotice.id));
+      toast({ title: "Deleted", description: `Notice "${selectedNotice.title}" deleted successfully!` });
+      setDeleteDialogOpen(false);
+      setSelectedNotice(null);
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : 'Failed to delete notice', variant: "destructive" });
+    }
   };
 
   const openEditDialog = (notice: typeof notices[0]) => {

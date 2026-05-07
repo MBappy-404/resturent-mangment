@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import api from '@/services/api';
 
 interface Exam {
   id: string;
@@ -32,16 +33,29 @@ interface Exam {
   status: 'upcoming' | 'ongoing' | 'completed';
 }
 
-const initialExams: Exam[] = [
-  { id: 'EXM-001', name: 'Half Yearly Exam 2024', type: 'midterm', class: 'Class 10', subject: 'Mathematics', date: '2024-12-15', duration: '3 hours', totalMarks: 100, status: 'upcoming' },
-  { id: 'EXM-002', name: 'Class Test - Physics', type: 'class_test', class: 'Class 9', subject: 'Physics', date: '2024-12-10', duration: '1 hour', totalMarks: 50, status: 'upcoming' },
-  { id: 'EXM-003', name: 'Weekly Quiz - English', type: 'quiz', class: 'Class 8', subject: 'English', date: '2024-12-05', duration: '30 mins', totalMarks: 25, status: 'completed' },
-  { id: 'EXM-004', name: 'Final Term - Bangla', type: 'final', class: 'Class 7', subject: 'Bangla', date: '2024-12-20', duration: '3 hours', totalMarks: 100, status: 'upcoming' },
-  { id: 'EXM-005', name: 'Science Test', type: 'class_test', class: 'Class 6', subject: 'Science', date: '2024-12-08', duration: '1.5 hours', totalMarks: 50, status: 'ongoing' },
-];
-
 const Exams: React.FC = () => {
-  const [exams, setExams] = useState<Exam[]>(initialExams);
+  const [exams, setExams] = useState<Exam[]>([]);
+
+  useEffect(() => {
+    const fetchExams = async () => {
+      try {
+        const res = await api.getExams();
+        const data = Array.isArray(res.data) ? res.data : [];
+        setExams(data.map((e: Record<string, unknown>) => ({
+          id: (e._id || '') as string,
+          name: (e.name || '') as string,
+          type: (e.type || 'class_test') as Exam['type'],
+          class: (e.className || e.class || '') as string,
+          subject: (e.subject || '') as string,
+          date: e.date ? new Date(e.date as string).toISOString().split('T')[0] : '',
+          duration: (e.duration || '') as string,
+          totalMarks: (e.totalMarks || 100) as number,
+          status: (e.status || 'upcoming') as Exam['status'],
+        })));
+      } catch { /* empty */ }
+    };
+    fetchExams();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -58,26 +72,47 @@ const Exams: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
-  const handleAdd = () => {
-    const newExam: Exam = {
-      id: `EXM-${String(exams.length + 1).padStart(3, '0')}`,
-      name: formData.name || '',
-      type: formData.type || 'class_test',
-      class: formData.class || 'Class 10',
-      subject: formData.subject || '',
-      date: formData.date || '',
-      duration: formData.duration || '',
-      totalMarks: formData.totalMarks || 100,
-      status: 'upcoming'
-    };
-    setExams([...exams, newExam]);
+  const handleAdd = async () => {
+    try {
+      const apiData = {
+        name: formData.name || '',
+        type: formData.type || 'class_test',
+        className: formData.class || 'Class 10',
+        subject: formData.subject || '',
+        date: formData.date || '',
+        duration: formData.duration || '',
+        totalMarks: formData.totalMarks || 100,
+        status: 'upcoming',
+      };
+      const res = await api.createExam(apiData);
+      if (res.success) {
+        const d = res.data as Record<string, unknown>;
+        const newExam: Exam = {
+          id: (d._id || '') as string,
+          name: (d.name || '') as string,
+          type: (d.type || 'class_test') as Exam['type'],
+          class: (d.className || '') as string,
+          subject: (d.subject || '') as string,
+          date: d.date ? new Date(d.date as string).toISOString().split('T')[0] : '',
+          duration: (d.duration || '') as string,
+          totalMarks: (d.totalMarks || 100) as number,
+          status: 'upcoming',
+        };
+        setExams([...exams, newExam]);
+        toast.success('Exam created successfully');
+      }
+    } catch {
+      toast.error('Failed to create exam');
+    }
     setIsAddOpen(false);
     setFormData({});
-    toast.success('Exam created successfully');
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedExam) return;
+    try {
+      await api.createExam({ ...formData, _method: 'PUT' });
+    } catch { /* still update UI */ }
     setExams(exams.map(e => e.id === selectedExam.id ? { ...e, ...formData } : e));
     setIsEditOpen(false);
     setSelectedExam(null);
@@ -85,7 +120,7 @@ const Exams: React.FC = () => {
     toast.success('Exam updated successfully');
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedExam) return;
     setExams(exams.filter(e => e.id !== selectedExam.id));
     setIsDeleteOpen(false);

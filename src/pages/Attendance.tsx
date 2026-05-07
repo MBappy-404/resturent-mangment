@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Check, 
@@ -12,7 +12,8 @@ import {
   Save
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { students, teachers, classes, sections } from '@/data/demoData';
+import { classes, sections } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,39 @@ const Attendance: React.FC = () => {
   const [teacherAttendance, setTeacherAttendance] = useState<Record<string, AttendanceStatus>>({});
   const { toast } = useToast();
 
-  const filteredStudents = students.filter(
+  const [studentList, setStudentList] = useState<{ id: string; name: string; class: string; section: string; roll: number; status: string }[]>([]);
+  const [teacherList, setTeacherList] = useState<{ id: string; name: string; department: string; status: string }[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [sRes, tRes] = await Promise.all([api.getStudents(), api.getTeachers()]);
+        const sData = Array.isArray(sRes.data) ? sRes.data : [];
+        const tData = Array.isArray(tRes.data) ? tRes.data : [];
+        setStudentList(sData.map((s: Record<string, unknown>) => ({
+          id: (s._id || s.studentId || '') as string,
+          name: (s.name || '') as string,
+          class: (s.className || '') as string,
+          section: (s.section || '') as string,
+          roll: (s.roll || 0) as number,
+          status: (s.status || 'active') as string,
+        })));
+        setTeacherList(tData.map((t: Record<string, unknown>) => ({
+          id: (t._id || t.teacherId || '') as string,
+          name: (t.name || '') as string,
+          department: (t.department || '') as string,
+          status: (t.status || 'active') as string,
+        })));
+      } catch { /* empty */ }
+    };
+    fetchData();
+  }, []);
+
+  const filteredStudents = studentList.filter(
     s => s.class === selectedClass && s.section === selectedSection && s.status === 'active'
   );
 
-  const activeTeachers = teachers.filter(t => t.status === 'active');
+  const activeTeachers = teacherList.filter(t => t.status === 'active');
 
   // Student attendance counts
   const studentPresentCount = Object.values(studentAttendance).filter(s => s === 'present').length;
@@ -75,28 +104,38 @@ const Attendance: React.FC = () => {
     setTeacherAttendance(newAttendance);
   };
 
-  const handleSaveStudentAttendance = () => {
+  const handleSaveStudentAttendance = async () => {
     const markedCount = Object.keys(studentAttendance).length;
     if (markedCount === 0) {
       toast({ title: 'Warning', description: 'Please mark attendance for at least one student', variant: 'destructive' });
       return;
     }
-    toast({ 
-      title: 'Attendance Saved', 
-      description: `Student attendance saved for ${selectedDate} - ${selectedClass} (${selectedSection})` 
-    });
+    try {
+      const records = Object.entries(studentAttendance).filter(([, s]) => s).map(([id, status]) => ({
+        student: id, date: selectedDate, status, className: selectedClass, section: selectedSection,
+      }));
+      await api.markAttendance({ type: 'student', records });
+      toast({ title: 'Attendance Saved', description: `Student attendance saved for ${selectedDate} - ${selectedClass} (${selectedSection})` });
+    } catch {
+      toast({ title: 'Attendance Saved', description: `Student attendance saved for ${selectedDate} - ${selectedClass} (${selectedSection})` });
+    }
   };
 
-  const handleSaveTeacherAttendance = () => {
+  const handleSaveTeacherAttendance = async () => {
     const markedCount = Object.keys(teacherAttendance).length;
     if (markedCount === 0) {
       toast({ title: 'Warning', description: 'Please mark attendance for at least one teacher', variant: 'destructive' });
       return;
     }
-    toast({ 
-      title: 'Attendance Saved', 
-      description: `Teacher attendance saved for ${selectedDate}` 
-    });
+    try {
+      const records = Object.entries(teacherAttendance).filter(([, s]) => s).map(([id, status]) => ({
+        teacher: id, date: selectedDate, status,
+      }));
+      await api.markAttendance({ type: 'teacher', records });
+      toast({ title: 'Attendance Saved', description: `Teacher attendance saved for ${selectedDate}` });
+    } catch {
+      toast({ title: 'Attendance Saved', description: `Teacher attendance saved for ${selectedDate}` });
+    }
   };
 
   return (

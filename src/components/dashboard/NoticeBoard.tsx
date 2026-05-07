@@ -1,15 +1,24 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, Calendar, AlertCircle, Info, Gift } from 'lucide-react';
-import { notices } from '@/data/demoData';
+import api from '@/services/api';
 import { cn } from '@/lib/utils';
 
-const priorityStyles = {
+interface Notice {
+  id: string;
+  title: string;
+  content: string;
+  type: 'general' | 'exam' | 'holiday' | 'event';
+  priority: 'high' | 'medium' | 'low';
+  date: string;
+}
+
+const priorityStyles: Record<string, string> = {
   high: 'bg-destructive/10 text-destructive border-destructive/20',
   medium: 'bg-warning/10 text-warning border-warning/20',
   low: 'bg-info/10 text-info border-info/20',
 };
 
-const typeIcons = {
+const typeIcons: Record<string, React.ElementType> = {
   general: Bell,
   exam: AlertCircle,
   holiday: Gift,
@@ -17,6 +26,29 @@ const typeIcons = {
 };
 
 export const NoticeBoard: React.FC = () => {
+  const [notices, setNotices] = useState<Notice[]>([]);
+
+  useEffect(() => {
+    const fetchNotices = async () => {
+      try {
+        const res = await api.getNotices();
+        const data = Array.isArray(res.data) ? res.data : [];
+        const mapped = data.slice(0, 4).map((n: Record<string, unknown>) => ({
+          id: (n._id || '') as string,
+          title: (n.title || '') as string,
+          content: (n.content || '') as string,
+          type: (n.type || 'general') as Notice['type'],
+          priority: (n.priority || 'medium') as Notice['priority'],
+          date: n.date ? new Date(n.date as string).toISOString().split('T')[0] : '',
+        }));
+        setNotices(mapped);
+      } catch {
+        // fallback empty
+      }
+    };
+    fetchNotices();
+  }, []);
+
   return (
     <div className="bg-card rounded-2xl p-6 border border-border/50 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -29,14 +61,14 @@ export const NoticeBoard: React.FC = () => {
         </button>
       </div>
       <div className="space-y-4">
-        {notices.slice(0, 4).map((notice, index) => {
-          const Icon = typeIcons[notice.type];
+        {notices.map((notice, index) => {
+          const Icon = typeIcons[notice.type] || Bell;
           return (
             <div
               key={notice.id}
               className={cn(
                 'p-4 rounded-xl border transition-all duration-200 hover:shadow-md cursor-pointer',
-                priorityStyles[notice.priority]
+                priorityStyles[notice.priority] || priorityStyles.medium
               )}
               style={{ animationDelay: `${index * 100}ms` }}
             >
@@ -56,6 +88,9 @@ export const NoticeBoard: React.FC = () => {
             </div>
           );
         })}
+        {notices.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">No notices yet</p>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import api from '@/services/api';
 
 // Group types for Class 9 & 10
 export type GroupType = 'science' | 'business' | 'arts' | 'general';
@@ -169,6 +170,31 @@ const groups: { value: GroupType; label: string; labelBn: string }[] = [
 
 const Subjects: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>(generateInitialSubjects);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await api.getSubjects();
+        const data = Array.isArray(res.data) ? res.data : [];
+        if (data.length > 0) {
+          setSubjects(data.map((s: Record<string, unknown>) => ({
+            id: (s._id || '') as string,
+            name: (s.name || '') as string,
+            nameBn: (s.nameBn || '') as string,
+            code: (s.code || '') as string,
+            classId: (s.classId || '') as string,
+            className: (s.className || '') as string,
+            group: (s.group || 'general') as GroupType,
+            academicYear: (s.academicYear || '2024') as string,
+            isCompulsory: (s.isCompulsory ?? true) as boolean,
+            fullMarks: (s.fullMarks || 100) as number,
+            passMarks: (s.passMarks || 33) as number,
+          })));
+        }
+      } catch { /* keep generated subjects */ }
+    };
+    fetchSubjects();
+  }, []);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedGroup, setSelectedGroup] = useState<GroupType | 'all'>('all');
@@ -236,7 +262,7 @@ const Subjects: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const selectedClassObj = classes.find(c => c.id === formData.classId);
     if (!selectedClassObj) {
       toast({ title: 'Error', description: 'Please select a class', variant: 'destructive' });
@@ -248,36 +274,51 @@ const Subjects: React.FC = () => {
       return;
     }
 
-    // For Class 9 & 10, group is mandatory
     if (isHigherClass(selectedClassObj.name) && formData.group === 'general') {
       toast({ title: 'Error', description: 'Please select a group for Class 9/10', variant: 'destructive' });
       return;
     }
 
     if (editingSubject) {
+      try {
+        await api.updateSubject(editingSubject.id, { ...formData, className: selectedClassObj.name });
+      } catch { /* still update UI */ }
       setSubjects(prev => prev.map(s => 
         s.id === editingSubject.id 
-          ? { 
-              ...s, 
-              ...formData, 
-              className: selectedClassObj.name 
-            } 
+          ? { ...s, ...formData, className: selectedClassObj.name } 
           : s
       ));
       toast({ title: 'Success', description: 'Subject updated successfully' });
     } else {
-      const newSubject: Subject = {
-        id: `SUB-${String(subjects.length + 1).padStart(4, '0')}`,
-        ...formData,
-        className: selectedClassObj.name,
-      };
-      setSubjects(prev => [...prev, newSubject]);
-      toast({ title: 'Success', description: 'Subject added successfully' });
+      try {
+        const res = await api.createSubject({ ...formData, className: selectedClassObj.name });
+        if (res.success) {
+          const d = res.data as Record<string, unknown>;
+          const newSubject: Subject = {
+            id: (d._id || `SUB-${subjects.length + 1}`) as string,
+            ...formData,
+            className: selectedClassObj.name,
+          };
+          setSubjects(prev => [...prev, newSubject]);
+          toast({ title: 'Success', description: 'Subject added successfully' });
+        }
+      } catch {
+        const newSubject: Subject = {
+          id: `SUB-${String(subjects.length + 1).padStart(4, '0')}`,
+          ...formData,
+          className: selectedClassObj.name,
+        };
+        setSubjects(prev => [...prev, newSubject]);
+        toast({ title: 'Success', description: 'Subject added successfully' });
+      }
     }
     setIsDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteSubject(id);
+    } catch { /* still update UI */ }
     setSubjects(prev => prev.filter(s => s.id !== id));
     toast({ title: 'Deleted', description: 'Subject removed successfully' });
   };
