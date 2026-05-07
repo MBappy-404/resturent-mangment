@@ -28,11 +28,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const initAuth = async () => {
-      if (token) {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken && !user) {
         try {
           const res = await api.getProfile();
           setUser(res.data as User);
         } catch {
+          setUser(null);
           setToken(null);
           api.clearToken();
         }
@@ -40,13 +42,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     };
     initAuth();
-  }, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (email: string, password: string) => {
     const res = await api.login(email, password);
     const data = res.data as { user: User; token: string };
     setUser(data.user);
     setToken(data.token);
+    setIsLoading(false);
   };
 
   const logout = () => {
