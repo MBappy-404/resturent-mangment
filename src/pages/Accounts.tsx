@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import api from '@/services/api';
 
 interface Transaction {
   id: string;
@@ -32,17 +33,8 @@ interface Transaction {
   reference: string;
 }
 
-const initialTransactions: Transaction[] = [
-  { id: 'TXN-001', type: 'income', category: 'Student Fees', description: 'December Month Fee Collection', amount: 285000, date: '2024-12-01', paymentMethod: 'Bank Transfer', reference: 'FEE-DEC-2024' },
-  { id: 'TXN-002', type: 'expense', category: 'Salary', description: 'Teacher Salary - November', amount: 450000, date: '2024-12-01', paymentMethod: 'Bank Transfer', reference: 'SAL-NOV-2024' },
-  { id: 'TXN-003', type: 'income', category: 'Admission Fees', description: 'New Admissions Q4', amount: 125000, date: '2024-11-28', paymentMethod: 'Cash', reference: 'ADM-Q4-2024' },
-  { id: 'TXN-004', type: 'expense', category: 'Utilities', description: 'Electricity Bill - November', amount: 35000, date: '2024-11-25', paymentMethod: 'Bank Transfer', reference: 'UTIL-NOV-2024' },
-  { id: 'TXN-005', type: 'expense', category: 'Maintenance', description: 'Building Repair Work', amount: 75000, date: '2024-11-20', paymentMethod: 'Cash', reference: 'MNT-NOV-2024' },
-  { id: 'TXN-006', type: 'income', category: 'Exam Fees', description: 'Half Yearly Exam Fees', amount: 95000, date: '2024-11-15', paymentMethod: 'Cash', reference: 'EXM-HY-2024' },
-];
-
 const Accounts: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -51,6 +43,18 @@ const Accounts: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [formData, setFormData] = useState<Partial<Transaction>>({});
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getAccounts();
+        const raw = res.data as Record<string, unknown>;
+        const data = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.transactions) ? (raw as Record<string, unknown>).transactions as Record<string, unknown>[] : []);
+        setTransactions(data.map((t: Record<string, unknown>) => ({ id: (t._id || t.txnId || t.id) as string, type: (t.type || 'income') as Transaction['type'], category: (t.category || '') as string, description: (t.description || '') as string, amount: (t.amount || 0) as number, date: t.date ? new Date(t.date as string).toISOString().split('T')[0] : '', paymentMethod: (t.paymentMethod || 'Cash') as string, reference: (t.reference || '') as string })));
+      } catch (e) { console.error('Failed to load transactions', e); }
+    };
+    fetchData();
+  }, []);
 
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
@@ -63,38 +67,38 @@ const Accounts: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
-  const handleAdd = () => {
-    const newTransaction: Transaction = {
-      id: `TXN-${String(transactions.length + 1).padStart(3, '0')}`,
-      type: formData.type || 'income',
-      category: formData.category || '',
-      description: formData.description || '',
-      amount: formData.amount || 0,
-      date: formData.date || new Date().toISOString().split('T')[0],
-      paymentMethod: formData.paymentMethod || 'Cash',
-      reference: formData.reference || ''
-    };
-    setTransactions([newTransaction, ...transactions]);
-    setIsAddOpen(false);
-    setFormData({});
-    toast.success('Transaction added successfully');
+  const handleAdd = async () => {
+    try {
+      const res = await api.createTransaction(formData);
+      const t = res.data as Record<string, unknown>;
+      setTransactions([{ id: (t._id || t.txnId) as string, type: (t.type || 'income') as Transaction['type'], category: (t.category || '') as string, description: (t.description || '') as string, amount: (t.amount || 0) as number, date: t.date ? new Date(t.date as string).toISOString().split('T')[0] : '', paymentMethod: (t.paymentMethod || 'Cash') as string, reference: (t.reference || '') as string }, ...transactions]);
+      setIsAddOpen(false);
+      setFormData({});
+      toast.success('Transaction added successfully');
+    } catch (e) { toast.error('Failed to add transaction'); }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedTransaction) return;
-    setTransactions(transactions.map(t => t.id === selectedTransaction.id ? { ...t, ...formData } : t));
-    setIsEditOpen(false);
-    setSelectedTransaction(null);
-    setFormData({});
-    toast.success('Transaction updated successfully');
+    try {
+      await api.updateTransaction(selectedTransaction.id, formData);
+      setTransactions(transactions.map(t => t.id === selectedTransaction.id ? { ...t, ...formData } : t));
+      setIsEditOpen(false);
+      setSelectedTransaction(null);
+      setFormData({});
+      toast.success('Transaction updated successfully');
+    } catch (e) { toast.error('Failed to update transaction'); }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedTransaction) return;
-    setTransactions(transactions.filter(t => t.id !== selectedTransaction.id));
-    setIsDeleteOpen(false);
-    setSelectedTransaction(null);
-    toast.success('Transaction deleted successfully');
+    try {
+      await api.deleteTransaction(selectedTransaction.id);
+      setTransactions(transactions.filter(t => t.id !== selectedTransaction.id));
+      setIsDeleteOpen(false);
+      setSelectedTransaction(null);
+      toast.success('Transaction deleted successfully');
+    } catch (e) { toast.error('Failed to delete transaction'); }
   };
 
   return (

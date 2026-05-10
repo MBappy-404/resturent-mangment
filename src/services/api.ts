@@ -247,6 +247,137 @@ class ApiService {
     return this.request(`/notices/${id}`, { method: 'DELETE' });
   }
 
+  // Library
+  async getLibrary(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/library${query}`);
+  }
+  async createBook(data: unknown) { return this.request('/library', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateBook(id: string, data: unknown) { return this.request(`/library/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteBook(id: string) { return this.request(`/library/${id}`, { method: 'DELETE' }); }
+
+  // Accounts
+  async getAccounts(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/accounts${query}`);
+  }
+  async createTransaction(data: unknown) { return this.request('/accounts', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateTransaction(id: string, data: unknown) { return this.request(`/accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteTransaction(id: string) { return this.request(`/accounts/${id}`, { method: 'DELETE' }); }
+
+  // Guardian
+  async getGuardians(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/guardians${query}`);
+  }
+  async createGuardian(data: unknown) { return this.request('/guardians', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateGuardian(id: string, data: unknown) { return this.request(`/guardians/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteGuardian(id: string) { return this.request(`/guardians/${id}`, { method: 'DELETE' }); }
+
+  // Diary
+  async getDiary(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/diary${query}`);
+  }
+  async createDiaryEntry(data: unknown) { return this.request('/diary', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateDiaryEntry(id: string, data: unknown) { return this.request(`/diary/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteDiaryEntry(id: string) { return this.request(`/diary/${id}`, { method: 'DELETE' }); }
+
+  // SMS
+  async getSMSTemplates() { return this.request('/sms/templates'); }
+  async createSMSTemplate(data: unknown) { return this.request('/sms/templates', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateSMSTemplate(id: string, data: unknown) { return this.request(`/sms/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteSMSTemplate(id: string) { return this.request(`/sms/templates/${id}`, { method: 'DELETE' }); }
+  async getSMSHistory() { return this.request('/sms/history'); }
+  async sendSMS(data: unknown) { return this.request('/sms/send', { method: 'POST', body: JSON.stringify(data) }); }
+
+  // Transport
+  async getVehicles() { return this.request('/transport/vehicles'); }
+  async createVehicle(data: unknown) { return this.request('/transport/vehicles', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateVehicle(id: string, data: unknown) { return this.request(`/transport/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteVehicle(id: string) { return this.request(`/transport/vehicles/${id}`, { method: 'DELETE' }); }
+  async getBusRoutes() { return this.request('/transport/routes'); }
+  async createBusRoute(data: unknown) { return this.request('/transport/routes', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateBusRoute(id: string, data: unknown) { return this.request(`/transport/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteBusRoute(id: string) { return this.request(`/transport/routes/${id}`, { method: 'DELETE' }); }
+  async getDrivers() { return this.request('/transport/drivers'); }
+  async createDriver(data: unknown) { return this.request('/transport/drivers', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateDriver(id: string, data: unknown) { return this.request(`/transport/drivers/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteDriver(id: string) { return this.request(`/transport/drivers/${id}`, { method: 'DELETE' }); }
+
+  // Certificates
+  async getCertificates(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/certificates${query}`);
+  }
+  async createCertificate(data: unknown) { return this.request('/certificates', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateCertificate(id: string, data: unknown) { return this.request(`/certificates/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteCertificate(id: string) { return this.request(`/certificates/${id}`, { method: 'DELETE' }); }
+  async getCertificateTemplates() { return this.request('/certificates/templates'); }
+  async createCertificateTemplate(data: unknown) { return this.request('/certificates/templates', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateCertificateTemplate(id: string, data: unknown) { return this.request(`/certificates/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteCertificateTemplate(id: string) { return this.request(`/certificates/templates/${id}`, { method: 'DELETE' }); }
+
+  // Calendar
+  async getCalendarEvents(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/calendar${query}`);
+  }
+  async createCalendarEvent(data: unknown) { return this.request('/calendar', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateCalendarEvent(id: string, data: unknown) { return this.request(`/calendar/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteCalendarEvent(id: string) { return this.request(`/calendar/${id}`, { method: 'DELETE' }); }
+
+  // Alumni
+  async getAlumni(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/alumni${query}`);
+  }
+  async createAlumni(data: unknown) { return this.request('/alumni', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateAlumni(id: string, data: unknown) { return this.request(`/alumni/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteAlumni(id: string) { return this.request(`/alumni/${id}`, { method: 'DELETE' }); }
+  async getAlumniEvents() { return this.request('/alumni/events'); }
+  async createAlumniEvent(data: unknown) { return this.request('/alumni/events', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateAlumniEvent(id: string, data: unknown) { return this.request(`/alumni/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteAlumniEvent(id: string) { return this.request(`/alumni/events/${id}`, { method: 'DELETE' }); }
+
+  // Medical
+  async getMedicalRecords(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/medical${query}`);
+  }
+  async createMedicalRecord(data: unknown) { return this.request('/medical', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateMedicalRecord(id: string, data: unknown) { return this.request(`/medical/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteMedicalRecord(id: string) { return this.request(`/medical/${id}`, { method: 'DELETE' }); }
+
+  // Scholarship
+  async getScholarshipPrograms() { return this.request('/scholarship/programs'); }
+  async createScholarshipProgram(data: unknown) { return this.request('/scholarship/programs', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateScholarshipProgram(id: string, data: unknown) { return this.request(`/scholarship/programs/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteScholarshipProgram(id: string) { return this.request(`/scholarship/programs/${id}`, { method: 'DELETE' }); }
+  async getScholarshipApplications(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/scholarship/applications${query}`);
+  }
+  async createScholarshipApplication(data: unknown) { return this.request('/scholarship/applications', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateScholarshipApplication(id: string, data: unknown) { return this.request(`/scholarship/applications/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteScholarshipApplication(id: string) { return this.request(`/scholarship/applications/${id}`, { method: 'DELETE' }); }
+
+  // Hostel
+  async getHostelRooms(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/hostel/rooms${query}`);
+  }
+  async createHostelRoom(data: unknown) { return this.request('/hostel/rooms', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateHostelRoom(id: string, data: unknown) { return this.request(`/hostel/rooms/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteHostelRoom(id: string) { return this.request(`/hostel/rooms/${id}`, { method: 'DELETE' }); }
+  async getHostelResidents(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request(`/hostel/residents${query}`);
+  }
+  async createHostelResident(data: unknown) { return this.request('/hostel/residents', { method: 'POST', body: JSON.stringify(data) }); }
+  async updateHostelResident(id: string, data: unknown) { return this.request(`/hostel/residents/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
+  async deleteHostelResident(id: string) { return this.request(`/hostel/residents/${id}`, { method: 'DELETE' }); }
+
   // Health
   async health() {
     return this.request('/health');

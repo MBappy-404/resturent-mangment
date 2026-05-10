@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import api from '@/services/api';
 
 interface Book {
   id: string;
@@ -31,16 +32,8 @@ interface Book {
   status: 'available' | 'low_stock' | 'out_of_stock';
 }
 
-const initialBooks: Book[] = [
-  { id: 'BK-001', title: 'Physics for Class 10', author: 'Dr. Rafiq Ahmed', isbn: '978-123-456-001', category: 'Science', totalCopies: 50, availableCopies: 35, location: 'Shelf A-1', status: 'available' },
-  { id: 'BK-002', title: 'Mathematics Made Easy', author: 'Prof. Kamal Hossain', isbn: '978-123-456-002', category: 'Mathematics', totalCopies: 40, availableCopies: 5, location: 'Shelf B-2', status: 'low_stock' },
-  { id: 'BK-003', title: 'English Grammar', author: 'Sarah Khan', isbn: '978-123-456-003', category: 'Language', totalCopies: 30, availableCopies: 0, location: 'Shelf C-1', status: 'out_of_stock' },
-  { id: 'BK-004', title: 'Bangladesh History', author: 'Dr. Jamal Uddin', isbn: '978-123-456-004', category: 'History', totalCopies: 25, availableCopies: 20, location: 'Shelf D-3', status: 'available' },
-  { id: 'BK-005', title: 'Chemistry Fundamentals', author: 'Prof. Nusrat Jahan', isbn: '978-123-456-005', category: 'Science', totalCopies: 35, availableCopies: 28, location: 'Shelf A-2', status: 'available' },
-];
-
 const Library: React.FC = () => {
-  const [books, setBooks] = useState<Book[]>(initialBooks);
+  const [books, setBooks] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -49,6 +42,18 @@ const Library: React.FC = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [formData, setFormData] = useState<Partial<Book>>({});
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const res = await api.getLibrary();
+        const raw = res.data as Record<string, unknown>;
+        const data = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.books) ? (raw as Record<string, unknown>).books as Record<string, unknown>[] : []);
+        setBooks(data.map((b: Record<string, unknown>) => ({ id: (b._id || b.bookId || b.id) as string, title: b.title as string, author: b.author as string, isbn: (b.isbn || '') as string, category: (b.category || '') as string, totalCopies: (b.totalCopies || 0) as number, availableCopies: (b.availableCopies || 0) as number, location: (b.location || '') as string, status: (b.status || 'available') as Book['status'] })));
+      } catch (e) { console.error('Failed to load books', e); }
+    };
+    fetchBooks();
+  }, []);
 
   const categories = [...new Set(books.map(b => b.category))];
 
@@ -59,46 +64,41 @@ const Library: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleAdd = () => {
-    const totalCopies = formData.totalCopies || 0;
-    const availableCopies = formData.availableCopies || totalCopies;
-    const newBook: Book = {
-      id: `BK-${String(books.length + 1).padStart(3, '0')}`,
-      title: formData.title || '',
-      author: formData.author || '',
-      isbn: formData.isbn || '',
-      category: formData.category || 'General',
-      totalCopies,
-      availableCopies,
-      location: formData.location || '',
-      status: availableCopies === 0 ? 'out_of_stock' : availableCopies < 10 ? 'low_stock' : 'available'
-    };
-    setBooks([...books, newBook]);
-    setIsAddOpen(false);
-    setFormData({});
-    toast.success('Book added successfully');
+  const handleAdd = async () => {
+    try {
+      const totalCopies = formData.totalCopies || 0;
+      const availableCopies = formData.availableCopies || totalCopies;
+      const res = await api.createBook({ ...formData, totalCopies, availableCopies, status: availableCopies === 0 ? 'out_of_stock' : availableCopies < 10 ? 'low_stock' : 'available' });
+      const b = res.data as Record<string, unknown>;
+      setBooks([...books, { id: (b._id || b.bookId) as string, title: b.title as string, author: b.author as string, isbn: (b.isbn || '') as string, category: (b.category || '') as string, totalCopies: (b.totalCopies || 0) as number, availableCopies: (b.availableCopies || 0) as number, location: (b.location || '') as string, status: (b.status || 'available') as Book['status'] }]);
+      setIsAddOpen(false);
+      setFormData({});
+      toast.success('Book added successfully');
+    } catch (e) { toast.error('Failed to add book'); }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedBook) return;
-    const availableCopies = formData.availableCopies || 0;
-    setBooks(books.map(b => b.id === selectedBook.id ? { 
-      ...b, 
-      ...formData,
-      status: availableCopies === 0 ? 'out_of_stock' : availableCopies < 10 ? 'low_stock' : 'available'
-    } : b));
-    setIsEditOpen(false);
-    setSelectedBook(null);
-    setFormData({});
-    toast.success('Book updated successfully');
+    try {
+      const availableCopies = formData.availableCopies || 0;
+      await api.updateBook(selectedBook.id, { ...formData, status: availableCopies === 0 ? 'out_of_stock' : availableCopies < 10 ? 'low_stock' : 'available' });
+      setBooks(books.map(b => b.id === selectedBook.id ? { ...b, ...formData, status: availableCopies === 0 ? 'out_of_stock' : availableCopies < 10 ? 'low_stock' : 'available' } : b));
+      setIsEditOpen(false);
+      setSelectedBook(null);
+      setFormData({});
+      toast.success('Book updated successfully');
+    } catch (e) { toast.error('Failed to update book'); }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedBook) return;
-    setBooks(books.filter(b => b.id !== selectedBook.id));
-    setIsDeleteOpen(false);
-    setSelectedBook(null);
-    toast.success('Book deleted successfully');
+    try {
+      await api.deleteBook(selectedBook.id);
+      setBooks(books.filter(b => b.id !== selectedBook.id));
+      setIsDeleteOpen(false);
+      setSelectedBook(null);
+      toast.success('Book deleted successfully');
+    } catch (e) { toast.error('Failed to delete book'); }
   };
 
   const statusStyles = {
