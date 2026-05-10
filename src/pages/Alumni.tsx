@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   Award,
   Building,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface AlumniMember {
   id: string;
@@ -57,14 +58,14 @@ interface AlumniEvent {
   status: 'upcoming' | 'completed' | 'cancelled';
 }
 
-const initialAlumni: AlumniMember[] = [
+const _unusedAlumni: AlumniMember[] = [
   { id: '1', name: 'Dr. Mahbub Alam', nameBn: 'ড. মাহবুব আলম', email: 'mahbub@email.com', phone: '01712345678', passingYear: '2010', class: 'SSC', currentProfession: 'Doctor', company: 'Chittagong Medical College', designation: 'Professor', address: 'চট্টগ্রাম', achievements: 'MBBS Gold Medalist, Published 20+ research papers', status: 'active' },
   { id: '2', name: 'Eng. Fatima Rahman', nameBn: 'ইঞ্জি. ফাতিমা রহমান', email: 'fatima@email.com', phone: '01812345678', passingYear: '2012', class: 'SSC', currentProfession: 'Software Engineer', company: 'Google', designation: 'Senior Engineer', address: 'ঢাকা', achievements: 'BUET First Class, Google Developer Expert', status: 'active' },
   { id: '3', name: 'Adv. Karim Uddin', nameBn: 'অ্যাডভোকেট করিম উদ্দিন', email: 'karim@email.com', phone: '01912345678', passingYear: '2008', class: 'SSC', currentProfession: 'Lawyer', company: 'Supreme Court', designation: 'Advocate', address: 'চট্টগ্রাম', achievements: 'LLB Gold Medalist, 100+ successful cases', status: 'active' },
   { id: '4', name: 'Prof. Salma Khatun', nameBn: 'প্রফেসর সালমা খাতুন', email: 'salma@email.com', phone: '01612345678', passingYear: '2005', class: 'SSC', currentProfession: 'Professor', company: 'Chittagong University', designation: 'Professor', address: 'চট্টগ্রাম', achievements: 'PhD from UK, Vice Chancellor Award', status: 'active' },
 ];
 
-const initialEvents: AlumniEvent[] = [
+const _unusedAlumniEvents: AlumniEvent[] = [
   { id: '1', title: 'Annual Alumni Reunion 2024', titleBn: 'বার্ষিক প্রাক্তন ছাত্র মিলনমেলা ২০২৪', description: 'সকল প্রাক্তন ছাত্রদের জন্য বার্ষিক মিলনমেলা', date: '2024-12-15', time: '10:00', venue: 'স্কুল অডিটোরিয়াম', organizer: 'Alumni Association', expectedAttendees: 200, status: 'upcoming' },
   { id: '2', title: 'Career Counseling Session', titleBn: 'ক্যারিয়ার কাউন্সেলিং সেশন', description: 'বর্তমান শিক্ষার্থীদের জন্য ক্যারিয়ার গাইডেন্স', date: '2024-03-20', time: '14:00', venue: 'সেমিনার হল', organizer: 'Dr. Mahbub Alam', expectedAttendees: 100, status: 'completed' },
   { id: '3', title: 'Scholarship Fund Program', titleBn: 'বৃত্তি তহবিল কর্মসূচি', description: 'মেধাবী শিক্ষার্থীদের জন্য বৃত্তি প্রদান', date: '2024-06-10', time: '11:00', venue: 'স্কুল মাঠ', organizer: 'Alumni Association', expectedAttendees: 150, status: 'upcoming' },
@@ -72,8 +73,8 @@ const initialEvents: AlumniEvent[] = [
 
 const Alumni: React.FC = () => {
   const { toast } = useToast();
-  const [alumni, setAlumni] = useState<AlumniMember[]>(initialAlumni);
-  const [events, setEvents] = useState<AlumniEvent[]>(initialEvents);
+  const [alumni, setAlumni] = useState<AlumniMember[]>([]);
+  const [events, setEvents] = useState<AlumniEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterYear, setFilterYear] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -93,6 +94,24 @@ const Alumni: React.FC = () => {
 
   const years = Array.from({ length: 30 }, (_, i) => (new Date().getFullYear() - i).toString());
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const aRes = await api.getAlumni();
+        const aRaw = aRes.data as Record<string, unknown>;
+        const aArr = Array.isArray(aRaw) ? aRaw : (Array.isArray((aRaw as Record<string, unknown>)?.alumni) ? (aRaw as Record<string, unknown>).alumni as Record<string, unknown>[] : []);
+        setAlumni(aArr.map((a: Record<string, unknown>) => ({ id: (a._id || a.id) as string, name: (a.name || '') as string, nameBn: (a.nameBn || '') as string, email: (a.email || '') as string, phone: (a.phone || '') as string, passingYear: (a.passingYear || '') as string, class: (a.class || '') as string, currentProfession: (a.currentProfession || '') as string, company: (a.company || '') as string, designation: (a.designation || '') as string, address: (a.address || '') as string, achievements: (a.achievements || '') as string, status: (a.status || 'active') as AlumniMember['status'] })));
+      } catch (e) { console.error('Failed to load alumni', e); }
+      try {
+        const eRes = await api.getAlumniEvents();
+        const eRaw = eRes.data as Record<string, unknown>;
+        const eArr = Array.isArray(eRaw) ? eRaw : (Array.isArray((eRaw as Record<string, unknown>)?.events) ? (eRaw as Record<string, unknown>).events as Record<string, unknown>[] : []);
+        setEvents(eArr.map((e: Record<string, unknown>) => ({ id: (e._id || e.id) as string, title: (e.title || '') as string, titleBn: (e.titleBn || '') as string, description: (e.description || '') as string, date: e.date ? new Date(e.date as string).toISOString().split('T')[0] : '', time: (e.time || '') as string, venue: (e.venue || '') as string, organizer: (e.organizer || '') as string, expectedAttendees: (e.expectedAttendees || 0) as number, status: (e.status || 'upcoming') as AlumniEvent['status'] })));
+      } catch (e) { console.error('Failed to load alumni events', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredAlumni = alumni.filter((a) => {
     const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       a.nameBn.includes(searchTerm) || a.currentProfession.toLowerCase().includes(searchTerm.toLowerCase());
@@ -100,52 +119,70 @@ const Alumni: React.FC = () => {
     return matchesSearch && matchesYear;
   });
 
-  const handleAddAlumni = () => {
+  const handleAddAlumni = async () => {
     if (!newAlumni.name || !newAlumni.phone) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const member: AlumniMember = { id: Date.now().toString(), ...newAlumni };
-    setAlumni([member, ...alumni]);
-    setNewAlumni({ name: '', nameBn: '', email: '', phone: '', passingYear: '', class: 'SSC', currentProfession: '', company: '', designation: '', address: '', achievements: '', status: 'active' });
-    setIsAddOpen(false);
-    toast({ title: 'সফল', description: 'প্রাক্তন ছাত্র যোগ করা হয়েছে' });
+    try {
+      const res = await api.createAlumni(newAlumni);
+      const a = res.data as Record<string, unknown>;
+      setAlumni([{ id: (a._id || a.id) as string, name: (a.name || '') as string, nameBn: (a.nameBn || '') as string, email: (a.email || '') as string, phone: (a.phone || '') as string, passingYear: (a.passingYear || '') as string, class: (a.class || '') as string, currentProfession: (a.currentProfession || '') as string, company: (a.company || '') as string, designation: (a.designation || '') as string, address: (a.address || '') as string, achievements: (a.achievements || '') as string, status: (a.status || 'active') as AlumniMember['status'] }, ...alumni]);
+      setNewAlumni({ name: '', nameBn: '', email: '', phone: '', passingYear: '', class: 'SSC', currentProfession: '', company: '', designation: '', address: '', achievements: '', status: 'active' });
+      setIsAddOpen(false);
+      toast({ title: 'সফল', description: 'প্রাক্তন ছাত্র যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditAlumni = () => {
+  const handleEditAlumni = async () => {
     if (!selectedAlumni) return;
-    setAlumni(alumni.map((a) => (a.id === selectedAlumni.id ? selectedAlumni : a)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'তথ্য আপডেট করা হয়েছে' });
+    try {
+      await api.updateAlumni(selectedAlumni.id, selectedAlumni);
+      setAlumni(alumni.map((a) => (a.id === selectedAlumni.id ? selectedAlumni : a)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'তথ্য আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteAlumni = (id: string) => {
-    setAlumni(alumni.filter((a) => a.id !== id));
-    toast({ title: 'সফল', description: 'মুছে ফেলা হয়েছে' });
+  const handleDeleteAlumni = async (id: string) => {
+    try {
+      await api.deleteAlumni(id);
+      setAlumni(alumni.filter((a) => a.id !== id));
+      toast({ title: 'সফল', description: 'মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.date) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const event: AlumniEvent = { id: Date.now().toString(), ...newEvent };
-    setEvents([event, ...events]);
-    setNewEvent({ title: '', titleBn: '', description: '', date: '', time: '', venue: '', organizer: '', expectedAttendees: 0, status: 'upcoming' });
-    setIsAddEventOpen(false);
-    toast({ title: 'সফল', description: 'ইভেন্ট যোগ করা হয়েছে' });
+    try {
+      const res = await api.createAlumniEvent(newEvent);
+      const ev = res.data as Record<string, unknown>;
+      setEvents([{ id: (ev._id || ev.id) as string, title: (ev.title || '') as string, titleBn: (ev.titleBn || '') as string, description: (ev.description || '') as string, date: ev.date ? new Date(ev.date as string).toISOString().split('T')[0] : '', time: (ev.time || '') as string, venue: (ev.venue || '') as string, organizer: (ev.organizer || '') as string, expectedAttendees: (ev.expectedAttendees || 0) as number, status: (ev.status || 'upcoming') as AlumniEvent['status'] }, ...events]);
+      setNewEvent({ title: '', titleBn: '', description: '', date: '', time: '', venue: '', organizer: '', expectedAttendees: 0, status: 'upcoming' });
+      setIsAddEventOpen(false);
+      toast({ title: 'সফল', description: 'ইভেন্ট যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditEvent = () => {
+  const handleEditEvent = async () => {
     if (!selectedEvent) return;
-    setEvents(events.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)));
-    setIsEventEditOpen(false);
-    toast({ title: 'সফল', description: 'ইভেন্ট আপডেট করা হয়েছে' });
+    try {
+      await api.updateAlumniEvent(selectedEvent.id, selectedEvent);
+      setEvents(events.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)));
+      setIsEventEditOpen(false);
+      toast({ title: 'সফল', description: 'ইভেন্ট আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
-    toast({ title: 'সফল', description: 'ইভেন্ট মুছে ফেলা হয়েছে' });
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await api.deleteAlumniEvent(id);
+      setEvents(events.filter((e) => e.id !== id));
+      toast({ title: 'সফল', description: 'ইভেন্ট মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getStatusColor = (status: string) => {

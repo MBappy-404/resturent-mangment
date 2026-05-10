@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   FileText,
   Calendar,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface ScholarshipProgram {
   id: string;
@@ -57,14 +58,14 @@ interface ScholarshipApplication {
   remarks?: string;
 }
 
-const initialPrograms: ScholarshipProgram[] = [
+const _unusedPrograms: ScholarshipProgram[] = [
   { id: '1', name: 'Merit Scholarship', nameBn: 'মেধা বৃত্তি', description: 'মেধাবী শিক্ষার্থীদের জন্য বার্ষিক বৃত্তি', amount: 12000, eligibility: 'GPA 5.00', deadline: '2024-06-30', totalSlots: 20, filledSlots: 15, status: 'active', sponsor: 'প্রতিষ্ঠান' },
   { id: '2', name: 'Need-based Scholarship', nameBn: 'দরিদ্র মেধাবী বৃত্তি', description: 'আর্থিকভাবে অসচ্ছল মেধাবী শিক্ষার্থীদের জন্য', amount: 15000, eligibility: 'GPA 4.50+, Family income < 15000', deadline: '2024-07-15', totalSlots: 30, filledSlots: 22, status: 'active', sponsor: 'Alumni Association' },
   { id: '3', name: 'Sports Scholarship', nameBn: 'ক্রীড়া বৃত্তি', description: 'জাতীয় পর্যায়ে অংশগ্রহণকারী খেলোয়াড়দের জন্য', amount: 10000, eligibility: 'National level participation', deadline: '2024-05-31', totalSlots: 10, filledSlots: 10, status: 'closed', sponsor: 'Sports Club' },
   { id: '4', name: 'Science Scholarship', nameBn: 'বিজ্ঞান বৃত্তি', description: 'বিজ্ঞান বিভাগের শিক্ষার্থীদের জন্য বিশেষ বৃত্তি', amount: 8000, eligibility: 'Science students, GPA 4.75+', deadline: '2024-08-01', totalSlots: 15, filledSlots: 0, status: 'upcoming', sponsor: 'Science Foundation' },
 ];
 
-const initialApplications: ScholarshipApplication[] = [
+const _unusedApplications: ScholarshipApplication[] = [
   { id: '1', programId: '1', programName: 'মেধা বৃত্তি', studentId: 'STD-001', studentName: 'Rahima Akter', studentNameBn: 'রাহিমা আক্তার', class: '১০ম', gpa: '5.00', familyIncome: '25000', reason: 'মেধার ভিত্তিতে বৃত্তি প্রাপ্তির আবেদন', appliedDate: '2024-01-15', status: 'approved' },
   { id: '2', programId: '2', programName: 'দরিদ্র মেধাবী বৃত্তি', studentId: 'STD-002', studentName: 'Karim Uddin', studentNameBn: 'করিম উদ্দিন', class: '৯ম', gpa: '4.75', familyIncome: '12000', reason: 'আর্থিক অসচ্ছলতার কারণে বৃত্তির জন্য আবেদন', appliedDate: '2024-01-20', status: 'pending' },
   { id: '3', programId: '1', programName: 'মেধা বৃত্তি', studentId: 'STD-003', studentName: 'Salma Khatun', studentNameBn: 'সালমা খাতুন', class: '৮ম', gpa: '4.90', familyIncome: '30000', reason: 'মেধাবী শিক্ষার্থী হিসেবে বৃত্তি প্রার্থী', appliedDate: '2024-01-18', status: 'pending' },
@@ -73,8 +74,8 @@ const initialApplications: ScholarshipApplication[] = [
 
 const Scholarship: React.FC = () => {
   const { toast } = useToast();
-  const [programs, setPrograms] = useState<ScholarshipProgram[]>(initialPrograms);
-  const [applications, setApplications] = useState<ScholarshipApplication[]>(initialApplications);
+  const [programs, setPrograms] = useState<ScholarshipProgram[]>([]);
+  const [applications, setApplications] = useState<ScholarshipApplication[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
@@ -90,6 +91,24 @@ const Scholarship: React.FC = () => {
     programId: '', studentId: '', studentName: '', studentNameBn: '', class: '', gpa: '', familyIncome: '', reason: ''
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const pRes = await api.getScholarshipPrograms();
+        const pRaw = pRes.data as Record<string, unknown>;
+        const pArr = Array.isArray(pRaw) ? pRaw : (Array.isArray((pRaw as Record<string, unknown>)?.programs) ? (pRaw as Record<string, unknown>).programs as Record<string, unknown>[] : []);
+        setPrograms(pArr.map((p: Record<string, unknown>) => ({ id: (p._id || p.id) as string, name: (p.name || '') as string, nameBn: (p.nameBn || '') as string, description: (p.description || '') as string, amount: (p.amount || 0) as number, eligibility: (p.eligibility || '') as string, deadline: p.deadline ? new Date(p.deadline as string).toISOString().split('T')[0] : '', totalSlots: (p.totalSlots || 0) as number, filledSlots: (p.filledSlots || 0) as number, status: (p.status || 'upcoming') as ScholarshipProgram['status'], sponsor: (p.sponsor || '') as string })));
+      } catch (e) { console.error('Failed to load scholarship programs', e); }
+      try {
+        const aRes = await api.getScholarshipApplications();
+        const aRaw = aRes.data as Record<string, unknown>;
+        const aArr = Array.isArray(aRaw) ? aRaw : (Array.isArray((aRaw as Record<string, unknown>)?.applications) ? (aRaw as Record<string, unknown>).applications as Record<string, unknown>[] : []);
+        setApplications(aArr.map((a: Record<string, unknown>) => ({ id: (a._id || a.id) as string, programId: (a.programId || '') as string, programName: (a.programName || '') as string, studentId: (a.studentId || '') as string, studentName: (a.studentName || '') as string, studentNameBn: (a.studentNameBn || '') as string, class: (a.class || '') as string, gpa: (a.gpa || '') as string, familyIncome: (a.familyIncome || '') as string, reason: (a.reason || '') as string, appliedDate: a.appliedDate ? new Date(a.appliedDate as string).toISOString().split('T')[0] : '', status: (a.status || 'pending') as ScholarshipApplication['status'], remarks: (a.remarks || '') as string })));
+      } catch (e) { console.error('Failed to load scholarship applications', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredApplications = applications.filter((a) => {
     const matchesSearch = a.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       a.studentNameBn.includes(searchTerm) || a.studentId.toLowerCase().includes(searchTerm.toLowerCase());
@@ -97,62 +116,77 @@ const Scholarship: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddProgram = () => {
+  const handleAddProgram = async () => {
     if (!newProgram.name || !newProgram.nameBn) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const program: ScholarshipProgram = { id: Date.now().toString(), ...newProgram, filledSlots: 0 };
-    setPrograms([program, ...programs]);
-    setNewProgram({ name: '', nameBn: '', description: '', amount: 0, eligibility: '', deadline: '', totalSlots: 0, sponsor: '', status: 'upcoming' });
-    setIsAddProgramOpen(false);
-    toast({ title: 'সফল', description: 'বৃত্তি প্রোগ্রাম যোগ করা হয়েছে' });
+    try {
+      const res = await api.createScholarshipProgram({ ...newProgram, filledSlots: 0 });
+      const p = res.data as Record<string, unknown>;
+      setPrograms([{ id: (p._id || p.id) as string, name: (p.name || '') as string, nameBn: (p.nameBn || '') as string, description: (p.description || '') as string, amount: (p.amount || 0) as number, eligibility: (p.eligibility || '') as string, deadline: p.deadline ? new Date(p.deadline as string).toISOString().split('T')[0] : '', totalSlots: (p.totalSlots || 0) as number, filledSlots: (p.filledSlots || 0) as number, status: (p.status || 'upcoming') as ScholarshipProgram['status'], sponsor: (p.sponsor || '') as string }, ...programs]);
+      setNewProgram({ name: '', nameBn: '', description: '', amount: 0, eligibility: '', deadline: '', totalSlots: 0, sponsor: '', status: 'upcoming' });
+      setIsAddProgramOpen(false);
+      toast({ title: 'সফল', description: 'বৃত্তি প্রোগ্রাম যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleAddApplication = () => {
+  const handleAddApplication = async () => {
     if (!newApplication.studentId || !newApplication.programId) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const program = programs.find((p) => p.id === newApplication.programId);
-    const application: ScholarshipApplication = {
-      id: Date.now().toString(),
-      ...newApplication,
-      programName: program?.nameBn || '',
-      appliedDate: new Date().toISOString().split('T')[0],
-      status: 'pending'
-    };
-    setApplications([application, ...applications]);
-    setNewApplication({ programId: '', studentId: '', studentName: '', studentNameBn: '', class: '', gpa: '', familyIncome: '', reason: '' });
-    setIsAddApplicationOpen(false);
-    toast({ title: 'সফল', description: 'আবেদন জমা হয়েছে' });
+    try {
+      const program = programs.find((p) => p.id === newApplication.programId);
+      const res = await api.createScholarshipApplication({ ...newApplication, programName: program?.nameBn || '', appliedDate: new Date().toISOString().split('T')[0], status: 'pending' });
+      const a = res.data as Record<string, unknown>;
+      setApplications([{ id: (a._id || a.id) as string, programId: (a.programId || '') as string, programName: (a.programName || '') as string, studentId: (a.studentId || '') as string, studentName: (a.studentName || '') as string, studentNameBn: (a.studentNameBn || '') as string, class: (a.class || '') as string, gpa: (a.gpa || '') as string, familyIncome: (a.familyIncome || '') as string, reason: (a.reason || '') as string, appliedDate: a.appliedDate ? new Date(a.appliedDate as string).toISOString().split('T')[0] : '', status: (a.status || 'pending') as ScholarshipApplication['status'], remarks: (a.remarks || '') as string }, ...applications]);
+      setNewApplication({ programId: '', studentId: '', studentName: '', studentNameBn: '', class: '', gpa: '', familyIncome: '', reason: '' });
+      setIsAddApplicationOpen(false);
+      toast({ title: 'সফল', description: 'আবেদন জমা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আবেদন ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditProgram = () => {
+  const handleEditProgram = async () => {
     if (!selectedProgram) return;
-    setPrograms(programs.map((p) => (p.id === selectedProgram.id ? selectedProgram : p)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'প্রোগ্রাম আপডেট করা হয়েছে' });
+    try {
+      await api.updateScholarshipProgram(selectedProgram.id, selectedProgram);
+      setPrograms(programs.map((p) => (p.id === selectedProgram.id ? selectedProgram : p)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'প্রোগ্রাম আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteProgram = (id: string) => {
-    setPrograms(programs.filter((p) => p.id !== id));
-    toast({ title: 'সফল', description: 'প্রোগ্রাম মুছে ফেলা হয়েছে' });
+  const handleDeleteProgram = async (id: string) => {
+    try {
+      await api.deleteScholarshipProgram(id);
+      setPrograms(programs.filter((p) => p.id !== id));
+      toast({ title: 'সফল', description: 'প্রোগ্রাম মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteApplication = (id: string) => {
-    setApplications(applications.filter((a) => a.id !== id));
-    toast({ title: 'সফল', description: 'আবেদন মুছে ফেলা হয়েছে' });
+  const handleDeleteApplication = async (id: string) => {
+    try {
+      await api.deleteScholarshipApplication(id);
+      setApplications(applications.filter((a) => a.id !== id));
+      toast({ title: 'সফল', description: 'আবেদন মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleApprove = (id: string) => {
-    setApplications(applications.map((a) => (a.id === id ? { ...a, status: 'approved' as const } : a)));
-    toast({ title: 'সফল', description: 'আবেদন অনুমোদিত হয়েছে' });
+  const handleApprove = async (id: string) => {
+    try {
+      await api.updateScholarshipApplication(id, { status: 'approved' });
+      setApplications(applications.map((a) => (a.id === id ? { ...a, status: 'approved' as const } : a)));
+      toast({ title: 'সফল', description: 'আবেদন অনুমোদিত হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'অনুমোদন ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleReject = (id: string) => {
-    setApplications(applications.map((a) => (a.id === id ? { ...a, status: 'rejected' as const } : a)));
-    toast({ title: 'সফল', description: 'আবেদন বাতিল করা হয়েছে' });
+  const handleReject = async (id: string) => {
+    try {
+      await api.updateScholarshipApplication(id, { status: 'rejected' });
+      setApplications(applications.map((a) => (a.id === id ? { ...a, status: 'rejected' as const } : a)));
+      toast({ title: 'সফল', description: 'আবেদন বাতিল করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'বাতিল ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getProgramStatusColor = (status: string) => {

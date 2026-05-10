@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   Droplet,
   FileText,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface MedicalRecord {
   id: string;
@@ -48,7 +49,7 @@ interface MedicalRecord {
   status: 'healthy' | 'needs-attention' | 'critical';
 }
 
-const initialRecords: MedicalRecord[] = [
+const _unusedMedRecords: MedicalRecord[] = [
   { id: '1', studentId: 'STD-001', studentName: 'Rahima Akter', studentNameBn: 'রাহিমা আক্তার', class: '৮ম', section: 'A', bloodGroup: 'A+', height: '152 cm', weight: '45 kg', allergies: 'Dust allergy', chronicConditions: 'None', currentMedications: 'None', emergencyContact: 'Abdul Karim', emergencyPhone: '01712345678', emergencyRelation: 'পিতা', doctorName: 'Dr. Mahbub', doctorPhone: '01812345678', lastCheckup: '2024-01-15', notes: 'সুস্থ', status: 'healthy' },
   { id: '2', studentId: 'STD-002', studentName: 'Karim Uddin', studentNameBn: 'করিম উদ্দিন', class: '৯ম', section: 'B', bloodGroup: 'B+', height: '160 cm', weight: '52 kg', allergies: 'Peanut allergy', chronicConditions: 'Asthma', currentMedications: 'Inhaler', emergencyContact: 'Zahir Uddin', emergencyPhone: '01912345678', emergencyRelation: 'পিতা', doctorName: 'Dr. Rahman', doctorPhone: '01612345678', lastCheckup: '2024-01-10', notes: 'Asthma under control', status: 'needs-attention' },
   { id: '3', studentId: 'STD-003', studentName: 'Salma Khatun', studentNameBn: 'সালমা খাতুন', class: '১০ম', section: 'A', bloodGroup: 'O+', height: '155 cm', weight: '48 kg', allergies: 'None', chronicConditions: 'None', currentMedications: 'None', emergencyContact: 'Ali Hossain', emergencyPhone: '01512345678', emergencyRelation: 'পিতা', doctorName: 'Dr. Fatima', doctorPhone: '01712345679', lastCheckup: '2024-01-20', notes: 'Excellent health', status: 'healthy' },
@@ -57,7 +58,7 @@ const initialRecords: MedicalRecord[] = [
 
 const Medical: React.FC = () => {
   const { toast } = useToast();
-  const [records, setRecords] = useState<MedicalRecord[]>(initialRecords);
+  const [records, setRecords] = useState<MedicalRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterBloodGroup, setFilterBloodGroup] = useState<string>('all');
@@ -74,6 +75,18 @@ const Medical: React.FC = () => {
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getMedicalRecords();
+        const raw = res.data as Record<string, unknown>;
+        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.records) ? (raw as Record<string, unknown>).records as Record<string, unknown>[] : []);
+        setRecords(arr.map((r: Record<string, unknown>) => ({ id: (r._id || r.id) as string, studentId: (r.studentId || '') as string, studentName: (r.studentName || '') as string, studentNameBn: (r.studentNameBn || '') as string, class: (r.class || '') as string, section: (r.section || '') as string, bloodGroup: (r.bloodGroup || '') as string, height: (r.height || '') as string, weight: (r.weight || '') as string, allergies: (r.allergies || '') as string, chronicConditions: (r.chronicConditions || '') as string, currentMedications: (r.currentMedications || '') as string, emergencyContact: (r.emergencyContact || '') as string, emergencyPhone: (r.emergencyPhone || '') as string, emergencyRelation: (r.emergencyRelation || '') as string, doctorName: (r.doctorName || '') as string, doctorPhone: (r.doctorPhone || '') as string, lastCheckup: r.lastCheckup ? new Date(r.lastCheckup as string).toISOString().split('T')[0] : '', notes: (r.notes || '') as string, status: (r.status || 'healthy') as MedicalRecord['status'] })));
+      } catch (e) { console.error('Failed to load medical records', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredRecords = records.filter((r) => {
     const matchesSearch = r.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.studentNameBn.includes(searchTerm) || r.studentId.toLowerCase().includes(searchTerm.toLowerCase());
@@ -82,28 +95,37 @@ const Medical: React.FC = () => {
     return matchesSearch && matchesStatus && matchesBlood;
   });
 
-  const handleAddRecord = () => {
+  const handleAddRecord = async () => {
     if (!newRecord.studentName || !newRecord.studentId) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const record: MedicalRecord = { id: Date.now().toString(), ...newRecord };
-    setRecords([record, ...records]);
-    setNewRecord({ studentId: '', studentName: '', studentNameBn: '', class: '', section: '', bloodGroup: '', height: '', weight: '', allergies: '', chronicConditions: '', currentMedications: '', emergencyContact: '', emergencyPhone: '', emergencyRelation: '', doctorName: '', doctorPhone: '', lastCheckup: '', notes: '', status: 'healthy' });
-    setIsAddOpen(false);
-    toast({ title: 'সফল', description: 'মেডিকেল রেকর্ড যোগ করা হয়েছে' });
+    try {
+      const res = await api.createMedicalRecord(newRecord);
+      const r = res.data as Record<string, unknown>;
+      setRecords([{ id: (r._id || r.id) as string, studentId: (r.studentId || '') as string, studentName: (r.studentName || '') as string, studentNameBn: (r.studentNameBn || '') as string, class: (r.class || '') as string, section: (r.section || '') as string, bloodGroup: (r.bloodGroup || '') as string, height: (r.height || '') as string, weight: (r.weight || '') as string, allergies: (r.allergies || '') as string, chronicConditions: (r.chronicConditions || '') as string, currentMedications: (r.currentMedications || '') as string, emergencyContact: (r.emergencyContact || '') as string, emergencyPhone: (r.emergencyPhone || '') as string, emergencyRelation: (r.emergencyRelation || '') as string, doctorName: (r.doctorName || '') as string, doctorPhone: (r.doctorPhone || '') as string, lastCheckup: r.lastCheckup ? new Date(r.lastCheckup as string).toISOString().split('T')[0] : '', notes: (r.notes || '') as string, status: (r.status || 'healthy') as MedicalRecord['status'] }, ...records]);
+      setNewRecord({ studentId: '', studentName: '', studentNameBn: '', class: '', section: '', bloodGroup: '', height: '', weight: '', allergies: '', chronicConditions: '', currentMedications: '', emergencyContact: '', emergencyPhone: '', emergencyRelation: '', doctorName: '', doctorPhone: '', lastCheckup: '', notes: '', status: 'healthy' });
+      setIsAddOpen(false);
+      toast({ title: 'সফল', description: 'মেডিকেল রেকর্ড যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditRecord = () => {
+  const handleEditRecord = async () => {
     if (!selectedRecord) return;
-    setRecords(records.map((r) => (r.id === selectedRecord.id ? selectedRecord : r)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'রেকর্ড আপডেট করা হয়েছে' });
+    try {
+      await api.updateMedicalRecord(selectedRecord.id, selectedRecord);
+      setRecords(records.map((r) => (r.id === selectedRecord.id ? selectedRecord : r)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'রেকর্ড আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteRecord = (id: string) => {
-    setRecords(records.filter((r) => r.id !== id));
-    toast({ title: 'সফল', description: 'রেকর্ড মুছে ফেলা হয়েছে' });
+  const handleDeleteRecord = async (id: string) => {
+    try {
+      await api.deleteMedicalRecord(id);
+      setRecords(records.filter((r) => r.id !== id));
+      toast({ title: 'সফল', description: 'রেকর্ড মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getStatusColor = (status: string) => {

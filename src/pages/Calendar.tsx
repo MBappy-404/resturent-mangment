@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface CalendarEvent {
   id: string;
@@ -42,7 +43,7 @@ interface CalendarEvent {
   isImportant: boolean;
 }
 
-const initialEvents: CalendarEvent[] = [
+const _unusedInitialEvents: CalendarEvent[] = [
   { id: '1', title: 'Eid ul-Fitr Holiday', titleBn: 'ঈদ-উল-ফিতর ছুটি', description: 'ঈদ-উল-ফিতর উপলক্ষে ৭ দিনের ছুটি', date: '2024-04-10', endDate: '2024-04-16', type: 'holiday', isImportant: true },
   { id: '2', title: 'Half-Yearly Exam', titleBn: 'অর্ধ-বার্ষিক পরীক্ষা', description: 'সকল শ্রেণির অর্ধ-বার্ষিক পরীক্ষা শুরু', date: '2024-05-01', endDate: '2024-05-15', type: 'exam', isImportant: true },
   { id: '3', title: 'Annual Sports Day', titleBn: 'বার্ষিক ক্রীড়া প্রতিযোগিতা', description: 'বার্ষিক ক্রীড়া প্রতিযোগিতা ও পুরস্কার বিতরণী', date: '2024-03-15', time: '09:00', type: 'event', location: 'স্কুল মাঠ', participants: 'সকল শিক্ষার্থী', isImportant: true },
@@ -62,7 +63,7 @@ const weekDays = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'ব
 
 const Calendar: React.FC = () => {
   const { toast } = useToast();
-  const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -82,6 +83,18 @@ const Calendar: React.FC = () => {
     participants: '',
     isImportant: false,
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getCalendarEvents();
+        const raw = res.data as Record<string, unknown>;
+        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.events) ? (raw as Record<string, unknown>).events as Record<string, unknown>[] : []);
+        setEvents(arr.map((e: Record<string, unknown>) => ({ id: (e._id || e.id) as string, title: (e.title || '') as string, titleBn: (e.titleBn || '') as string, description: (e.description || '') as string, date: e.date ? new Date(e.date as string).toISOString().split('T')[0] : '', endDate: e.endDate ? new Date(e.endDate as string).toISOString().split('T')[0] : undefined, time: (e.time || '') as string, type: (e.type || 'event') as CalendarEvent['type'], location: (e.location || '') as string, participants: (e.participants || '') as string, isImportant: (e.isImportant || false) as boolean })));
+      } catch (e) { console.error('Failed to load events', e); }
+    };
+    fetchData();
+  }, []);
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
@@ -114,28 +127,37 @@ const Calendar: React.FC = () => {
     return matchesSearch && matchesType;
   }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.date) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const event: CalendarEvent = { id: Date.now().toString(), ...newEvent };
-    setEvents([event, ...events]);
-    setNewEvent({ title: '', titleBn: '', description: '', date: '', endDate: '', time: '', type: 'event', location: '', participants: '', isImportant: false });
-    setIsAddOpen(false);
-    toast({ title: 'সফল', description: 'ইভেন্ট যোগ করা হয়েছে' });
+    try {
+      const res = await api.createCalendarEvent(newEvent);
+      const ev = res.data as Record<string, unknown>;
+      setEvents([{ id: (ev._id || ev.id) as string, title: (ev.title || '') as string, titleBn: (ev.titleBn || '') as string, description: (ev.description || '') as string, date: ev.date ? new Date(ev.date as string).toISOString().split('T')[0] : '', endDate: ev.endDate ? new Date(ev.endDate as string).toISOString().split('T')[0] : undefined, time: (ev.time || '') as string, type: (ev.type || 'event') as CalendarEvent['type'], location: (ev.location || '') as string, participants: (ev.participants || '') as string, isImportant: (ev.isImportant || false) as boolean }, ...events]);
+      setNewEvent({ title: '', titleBn: '', description: '', date: '', endDate: '', time: '', type: 'event', location: '', participants: '', isImportant: false });
+      setIsAddOpen(false);
+      toast({ title: 'সফল', description: 'ইভেন্ট যোগ করা হয়েছে' });
+    } catch (err) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditEvent = () => {
+  const handleEditEvent = async () => {
     if (!selectedEvent) return;
-    setEvents(events.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'ইভেন্ট আপডেট করা হয়েছে' });
+    try {
+      await api.updateCalendarEvent(selectedEvent.id, selectedEvent);
+      setEvents(events.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'ইভেন্ট আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
-    toast({ title: 'সফল', description: 'ইভেন্ট মুছে ফেলা হয়েছে' });
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await api.deleteCalendarEvent(id);
+      setEvents(events.filter((e) => e.id !== id));
+      toast({ title: 'সফল', description: 'ইভেন্ট মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const previousMonth = () => {

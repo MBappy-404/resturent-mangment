@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   CheckCircle,
   Clock,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface Certificate {
   id: string;
@@ -53,24 +54,10 @@ interface CertificateTemplate {
   isActive: boolean;
 }
 
-const initialCertificates: Certificate[] = [
-  { id: '1', type: 'transfer', studentName: 'Rahima Akter', studentNameBn: 'রাহিমা আক্তার', studentId: 'STD-001', class: '১০ম', section: 'A', fatherName: 'আব্দুল করিম', motherName: 'ফাতেমা বেগম', issueDate: '2024-01-20', reason: 'অন্য স্কুলে ভর্তি', status: 'printed', serialNo: 'TC-2024-001' },
-  { id: '2', type: 'character', studentName: 'Karim Uddin', studentNameBn: 'করিম উদ্দিন', studentId: 'STD-002', class: '৮ম', section: 'B', fatherName: 'জহির উদ্দিন', motherName: 'সালমা খাতুন', issueDate: '2024-01-18', status: 'approved', serialNo: 'CC-2024-001' },
-  { id: '3', type: 'bonafide', studentName: 'Salma Khatun', studentNameBn: 'সালমা খাতুন', studentId: 'STD-003', class: '৯ম', section: 'A', fatherName: 'আলী হোসেন', motherName: 'রহিমা বেগম', issueDate: '2024-01-15', reason: 'ব্যাংক একাউন্ট খোলার জন্য', status: 'printed', serialNo: 'BF-2024-001' },
-  { id: '4', type: 'testimonial', studentName: 'Jahid Hassan', studentNameBn: 'জাহিদ হাসান', studentId: 'STD-004', class: '১০ম', section: 'A', fatherName: 'হাসান আলী', motherName: 'নাজমা বেগম', issueDate: '2024-01-10', status: 'pending', serialNo: 'TM-2024-001' },
-];
-
-const initialTemplates: CertificateTemplate[] = [
-  { id: '1', name: 'Transfer Certificate', nameBn: 'বদলি সনদপত্র', type: 'transfer', content: 'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {student_name} পিতা: {father_name}, মাতা: {mother_name} এই প্রতিষ্ঠানে {class} শ্রেণিতে অধ্যয়নরত ছিল এবং তার বিরুদ্ধে কোন শৃঙ্খলা বিরোধী অভিযোগ নেই।', isActive: true },
-  { id: '2', name: 'Character Certificate', nameBn: 'চারিত্রিক সনদপত্র', type: 'character', content: 'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {student_name} পিতা: {father_name} একজন সৎ, নিষ্ঠাবান ও চরিত্রবান ছাত্র/ছাত্রী। সে এই প্রতিষ্ঠানে অধ্যয়নকালে সদাচারী ছিল।', isActive: true },
-  { id: '3', name: 'Bonafide Certificate', nameBn: 'বোনাফাইড সনদপত্র', type: 'bonafide', content: 'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {student_name} রোল নং: {roll}, আইডি: {student_id} বর্তমানে এই প্রতিষ্ঠানের {class} শ্রেণির একজন নিয়মিত ছাত্র/ছাত্রী।', isActive: true },
-  { id: '4', name: 'Testimonial', nameBn: 'প্রশংসাপত্র', type: 'testimonial', content: 'এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, {student_name} এই প্রতিষ্ঠানে অধ্যয়নকালে একজন মেধাবী ও পরিশ্রমী ছাত্র/ছাত্রী হিসেবে পরিচিত ছিল। তার ভবিষ্যৎ উজ্জ্বল কামনা করি।', isActive: true },
-];
-
 const Certificates: React.FC = () => {
   const { toast } = useToast();
-  const [certificates, setCertificates] = useState<Certificate[]>(initialCertificates);
-  const [templates, setTemplates] = useState<CertificateTemplate[]>(initialTemplates);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -93,6 +80,24 @@ const Certificates: React.FC = () => {
     remarks: '',
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const cRes = await api.getCertificates();
+        const cRaw = cRes.data as Record<string, unknown>;
+        const cArr = Array.isArray(cRaw) ? cRaw : (Array.isArray((cRaw as Record<string, unknown>)?.certificates) ? (cRaw as Record<string, unknown>).certificates as Record<string, unknown>[] : []);
+        setCertificates(cArr.map((c: Record<string, unknown>) => ({ id: (c._id || c.id) as string, type: (c.type || 'transfer') as Certificate['type'], studentName: (c.studentName || '') as string, studentNameBn: (c.studentNameBn || '') as string, studentId: (c.studentId || '') as string, class: (c.class || '') as string, section: (c.section || '') as string, fatherName: (c.fatherName || '') as string, motherName: (c.motherName || '') as string, issueDate: c.issueDate ? new Date(c.issueDate as string).toISOString().split('T')[0] : '', reason: (c.reason || '') as string, remarks: (c.remarks || '') as string, status: (c.status || 'pending') as Certificate['status'], serialNo: (c.serialNo || '') as string })));
+      } catch (e) { console.error('Failed to load certificates', e); }
+      try {
+        const tRes = await api.getCertificateTemplates();
+        const tRaw = tRes.data as Record<string, unknown>;
+        const tArr = Array.isArray(tRaw) ? tRaw : (Array.isArray((tRaw as Record<string, unknown>)?.templates) ? (tRaw as Record<string, unknown>).templates as Record<string, unknown>[] : []);
+        setTemplates(tArr.map((t: Record<string, unknown>) => ({ id: (t._id || t.id) as string, name: (t.name || '') as string, nameBn: (t.nameBn || '') as string, type: (t.type || 'transfer') as CertificateTemplate['type'], content: (t.content || '') as string, isActive: (t.isActive !== false) as boolean })));
+      } catch (e) { console.error('Failed to load certificate templates', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredCertificates = certificates.filter((cert) => {
     const matchesSearch = cert.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cert.studentNameBn.includes(searchTerm) ||
@@ -109,51 +114,63 @@ const Certificates: React.FC = () => {
     return `${prefix}-${year}-${String(count).padStart(3, '0')}`;
   };
 
-  const handleAddCertificate = () => {
+  const handleAddCertificate = async () => {
     if (!newCertificate.studentName || !newCertificate.studentId) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const certificate: Certificate = {
-      id: Date.now().toString(),
-      ...newCertificate,
-      issueDate: new Date().toISOString().split('T')[0],
-      status: 'pending',
-      serialNo: generateSerialNo(newCertificate.type),
-    };
-    setCertificates([certificate, ...certificates]);
-    setNewCertificate({ type: 'transfer', studentName: '', studentNameBn: '', studentId: '', class: '', section: '', fatherName: '', motherName: '', reason: '', remarks: '' });
-    setIsAddOpen(false);
-    toast({ title: 'সফল', description: 'সার্টিফিকেট তৈরি করা হয়েছে' });
+    try {
+      const res = await api.createCertificate({ ...newCertificate, issueDate: new Date().toISOString().split('T')[0], status: 'pending', serialNo: generateSerialNo(newCertificate.type) });
+      const c = res.data as Record<string, unknown>;
+      setCertificates([{ id: (c._id || c.id) as string, type: (c.type || 'transfer') as Certificate['type'], studentName: (c.studentName || '') as string, studentNameBn: (c.studentNameBn || '') as string, studentId: (c.studentId || '') as string, class: (c.class || '') as string, section: (c.section || '') as string, fatherName: (c.fatherName || '') as string, motherName: (c.motherName || '') as string, issueDate: c.issueDate ? new Date(c.issueDate as string).toISOString().split('T')[0] : '', reason: (c.reason || '') as string, remarks: (c.remarks || '') as string, status: (c.status || 'pending') as Certificate['status'], serialNo: (c.serialNo || '') as string }, ...certificates]);
+      setNewCertificate({ type: 'transfer', studentName: '', studentNameBn: '', studentId: '', class: '', section: '', fatherName: '', motherName: '', reason: '', remarks: '' });
+      setIsAddOpen(false);
+      toast({ title: 'সফল', description: 'সার্টিফিকেট তৈরি করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'তৈরি করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditCertificate = () => {
+  const handleEditCertificate = async () => {
     if (!selectedCertificate) return;
-    setCertificates(certificates.map((c) => (c.id === selectedCertificate.id ? selectedCertificate : c)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'সার্টিফিকেট আপডেট করা হয়েছে' });
+    try {
+      await api.updateCertificate(selectedCertificate.id, selectedCertificate);
+      setCertificates(certificates.map((c) => (c.id === selectedCertificate.id ? selectedCertificate : c)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'সার্টিফিকেট আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteCertificate = (id: string) => {
-    setCertificates(certificates.filter((c) => c.id !== id));
-    toast({ title: 'সফল', description: 'সার্টিফিকেট মুছে ফেলা হয়েছে' });
+  const handleDeleteCertificate = async (id: string) => {
+    try {
+      await api.deleteCertificate(id);
+      setCertificates(certificates.filter((c) => c.id !== id));
+      toast({ title: 'সফল', description: 'সার্টিফিকেট মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleApprove = (id: string) => {
-    setCertificates(certificates.map((c) => (c.id === id ? { ...c, status: 'approved' as const } : c)));
-    toast({ title: 'সফল', description: 'সার্টিফিকেট অনুমোদিত হয়েছে' });
+  const handleApprove = async (id: string) => {
+    try {
+      await api.updateCertificate(id, { status: 'approved' });
+      setCertificates(certificates.map((c) => (c.id === id ? { ...c, status: 'approved' as const } : c)));
+      toast({ title: 'সফল', description: 'সার্টিফিকেট অনুমোদিত হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'অনুমোদন ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handlePrint = (id: string) => {
-    setCertificates(certificates.map((c) => (c.id === id ? { ...c, status: 'printed' as const } : c)));
-    toast({ title: 'সফল', description: 'সার্টিফিকেট প্রিন্ট করা হয়েছে' });
+  const handlePrint = async (id: string) => {
+    try {
+      await api.updateCertificate(id, { status: 'printed' });
+      setCertificates(certificates.map((c) => (c.id === id ? { ...c, status: 'printed' as const } : c)));
+      toast({ title: 'সফল', description: 'সার্টিফিকেট প্রিন্ট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'প্রিন্ট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditTemplate = () => {
+  const handleEditTemplate = async () => {
     if (!selectedTemplate) return;
-    setTemplates(templates.map((t) => (t.id === selectedTemplate.id ? selectedTemplate : t)));
-    setIsTemplateEditOpen(false);
-    toast({ title: 'সফল', description: 'টেমপ্লেট আপডেট করা হয়েছে' });
+    try {
+      await api.updateCertificateTemplate(selectedTemplate.id, selectedTemplate);
+      setTemplates(templates.map((t) => (t.id === selectedTemplate.id ? selectedTemplate : t)));
+      setIsTemplateEditOpen(false);
+      toast({ title: 'সফল', description: 'টেমপ্লেট আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getTypeLabel = (type: string) => {

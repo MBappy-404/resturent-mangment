@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   Calendar,
   CheckCircle,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface Room {
   id: string;
@@ -66,7 +67,7 @@ interface MealPlan {
   status: 'active' | 'inactive';
 }
 
-const initialRooms: Room[] = [
+const _unusedRooms: Room[] = [
   { id: '1', roomNumber: '101', floor: '1st', type: 'double', capacity: 2, occupied: 2, monthlyRent: 3000, amenities: 'AC, Attached Bathroom, Study Table', status: 'full' },
   { id: '2', roomNumber: '102', floor: '1st', type: 'double', capacity: 2, occupied: 1, monthlyRent: 3000, amenities: 'AC, Attached Bathroom, Study Table', status: 'available' },
   { id: '3', roomNumber: '201', floor: '2nd', type: 'dormitory', capacity: 6, occupied: 4, monthlyRent: 1500, amenities: 'Fan, Common Bathroom', status: 'available' },
@@ -74,14 +75,14 @@ const initialRooms: Room[] = [
   { id: '5', roomNumber: '301', floor: '3rd', type: 'double', capacity: 2, occupied: 0, monthlyRent: 2500, amenities: 'Fan, Attached Bathroom', status: 'maintenance' },
 ];
 
-const initialResidents: HostelResident[] = [
+const _unusedResidents: HostelResident[] = [
   { id: '1', studentId: 'STD-001', studentName: 'Rahima Akter', studentNameBn: 'রাহিমা আক্তার', class: '১০ম', roomId: '1', roomNumber: '101', bedNumber: 'A', joinDate: '2024-01-01', guardianName: 'Abdul Karim', guardianPhone: '01712345678', mealPlan: 'full', monthlyFee: 6500, status: 'active' },
   { id: '2', studentId: 'STD-002', studentName: 'Salma Khatun', studentNameBn: 'সালমা খাতুন', class: '৯ম', roomId: '1', roomNumber: '101', bedNumber: 'B', joinDate: '2024-01-05', guardianName: 'Ali Hossain', guardianPhone: '01812345678', mealPlan: 'full', monthlyFee: 6500, status: 'active' },
   { id: '3', studentId: 'STD-003', studentName: 'Fatima Rahman', studentNameBn: 'ফাতিমা রহমান', class: '৮ম', roomId: '2', roomNumber: '102', bedNumber: 'A', joinDate: '2024-01-10', guardianName: 'Rahman Uddin', guardianPhone: '01912345678', mealPlan: 'partial', monthlyFee: 5000, status: 'active' },
   { id: '4', studentId: 'STD-004', studentName: 'Ayesha Begum', studentNameBn: 'আয়েশা বেগম', class: '১০ম', roomId: '4', roomNumber: '202', bedNumber: '-', joinDate: '2024-01-15', guardianName: 'Kamal Hossain', guardianPhone: '01612345678', mealPlan: 'full', monthlyFee: 8500, status: 'active' },
 ];
 
-const initialMealPlans: MealPlan[] = [
+const _unusedMealPlans: MealPlan[] = [
   { id: '1', name: 'Full Board', nameBn: 'পূর্ণ খাবার', description: 'সকাল, দুপুর ও রাতের খাবার', mealsPerDay: 3, monthlyPrice: 3500, status: 'active' },
   { id: '2', name: 'Partial Board', nameBn: 'আংশিক খাবার', description: 'দুপুর ও রাতের খাবার', mealsPerDay: 2, monthlyPrice: 2500, status: 'active' },
   { id: '3', name: 'Breakfast Only', nameBn: 'শুধু সকালের নাস্তা', description: 'শুধুমাত্র সকালের নাস্তা', mealsPerDay: 1, monthlyPrice: 1000, status: 'active' },
@@ -89,9 +90,9 @@ const initialMealPlans: MealPlan[] = [
 
 const Hostel: React.FC = () => {
   const { toast } = useToast();
-  const [rooms, setRooms] = useState<Room[]>(initialRooms);
-  const [residents, setResidents] = useState<HostelResident[]>(initialResidents);
-  const [mealPlans, setMealPlans] = useState<MealPlan[]>(initialMealPlans);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [residents, setResidents] = useState<HostelResident[]>([]);
+  const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [isAddRoomOpen, setIsAddRoomOpen] = useState(false);
@@ -107,6 +108,24 @@ const Hostel: React.FC = () => {
     studentId: '', studentName: '', studentNameBn: '', class: '', roomId: '', bedNumber: '', guardianName: '', guardianPhone: '', mealPlan: 'full' as HostelResident['mealPlan']
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const rRes = await api.getHostelRooms();
+        const rRaw = rRes.data as Record<string, unknown>;
+        const rArr = Array.isArray(rRaw) ? rRaw : (Array.isArray((rRaw as Record<string, unknown>)?.rooms) ? (rRaw as Record<string, unknown>).rooms as Record<string, unknown>[] : []);
+        setRooms(rArr.map((r: Record<string, unknown>) => ({ id: (r._id || r.id) as string, roomNumber: (r.roomNumber || '') as string, floor: (r.floor || '') as string, type: (r.type || 'double') as Room['type'], capacity: (r.capacity || 0) as number, occupied: (r.occupied || 0) as number, monthlyRent: (r.monthlyRent || 0) as number, amenities: (r.amenities || '') as string, status: (r.status || 'available') as Room['status'] })));
+      } catch (e) { console.error('Failed to load rooms', e); }
+      try {
+        const hRes = await api.getHostelResidents();
+        const hRaw = hRes.data as Record<string, unknown>;
+        const hArr = Array.isArray(hRaw) ? hRaw : (Array.isArray((hRaw as Record<string, unknown>)?.residents) ? (hRaw as Record<string, unknown>).residents as Record<string, unknown>[] : []);
+        setResidents(hArr.map((h: Record<string, unknown>) => ({ id: (h._id || h.id) as string, studentId: (h.studentId || '') as string, studentName: (h.studentName || '') as string, studentNameBn: (h.studentNameBn || '') as string, class: (h.class || '') as string, roomId: (h.roomId || '') as string, roomNumber: (h.roomNumber || '') as string, bedNumber: (h.bedNumber || '') as string, joinDate: h.joinDate ? new Date(h.joinDate as string).toISOString().split('T')[0] : '', guardianName: (h.guardianName || '') as string, guardianPhone: (h.guardianPhone || '') as string, mealPlan: (h.mealPlan || 'full') as HostelResident['mealPlan'], monthlyFee: (h.monthlyFee || 0) as number, status: (h.status || 'active') as HostelResident['status'] })));
+      } catch (e) { console.error('Failed to load residents', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredResidents = residents.filter((r) => {
     const matchesSearch = r.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.studentNameBn.includes(searchTerm) || r.studentId.toLowerCase().includes(searchTerm.toLowerCase());
@@ -114,61 +133,69 @@ const Hostel: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddRoom = () => {
+  const handleAddRoom = async () => {
     if (!newRoom.roomNumber) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const room: Room = { id: Date.now().toString(), ...newRoom, occupied: 0 };
-    setRooms([room, ...rooms]);
-    setNewRoom({ roomNumber: '', floor: '', type: 'double', capacity: 2, monthlyRent: 0, amenities: '', status: 'available' });
-    setIsAddRoomOpen(false);
-    toast({ title: 'সফল', description: 'রুম যোগ করা হয়েছে' });
+    try {
+      const res = await api.createHostelRoom({ ...newRoom, occupied: 0 });
+      const r = res.data as Record<string, unknown>;
+      setRooms([{ id: (r._id || r.id) as string, roomNumber: (r.roomNumber || '') as string, floor: (r.floor || '') as string, type: (r.type || 'double') as Room['type'], capacity: (r.capacity || 0) as number, occupied: (r.occupied || 0) as number, monthlyRent: (r.monthlyRent || 0) as number, amenities: (r.amenities || '') as string, status: (r.status || 'available') as Room['status'] }, ...rooms]);
+      setNewRoom({ roomNumber: '', floor: '', type: 'double', capacity: 2, monthlyRent: 0, amenities: '', status: 'available' });
+      setIsAddRoomOpen(false);
+      toast({ title: 'সফল', description: 'রুম যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleAddResident = () => {
+  const handleAddResident = async () => {
     if (!newResident.studentId || !newResident.roomId) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const room = rooms.find((r) => r.id === newResident.roomId);
-    const mealPlan = mealPlans.find((m) => m.id === (newResident.mealPlan === 'full' ? '1' : newResident.mealPlan === 'partial' ? '2' : '3'));
-    const resident: HostelResident = {
-      id: Date.now().toString(),
-      ...newResident,
-      roomNumber: room?.roomNumber || '',
-      joinDate: new Date().toISOString().split('T')[0],
-      monthlyFee: (room?.monthlyRent || 0) + (mealPlan?.monthlyPrice || 0),
-      status: 'active'
-    };
-    setResidents([resident, ...residents]);
-    if (room) {
-      setRooms(rooms.map((r) => r.id === room.id ? { ...r, occupied: r.occupied + 1, status: r.occupied + 1 >= r.capacity ? 'full' : 'available' } : r));
-    }
-    setNewResident({ studentId: '', studentName: '', studentNameBn: '', class: '', roomId: '', bedNumber: '', guardianName: '', guardianPhone: '', mealPlan: 'full' });
-    setIsAddResidentOpen(false);
-    toast({ title: 'সফল', description: 'আবাসিক যোগ করা হয়েছে' });
+    try {
+      const room = rooms.find((r) => r.id === newResident.roomId);
+      const mealPlanObj = mealPlans.find((m) => m.id === (newResident.mealPlan === 'full' ? '1' : newResident.mealPlan === 'partial' ? '2' : '3'));
+      const res = await api.createHostelResident({ ...newResident, roomNumber: room?.roomNumber || '', joinDate: new Date().toISOString().split('T')[0], monthlyFee: (room?.monthlyRent || 0) + (mealPlanObj?.monthlyPrice || 0), status: 'active' });
+      const h = res.data as Record<string, unknown>;
+      setResidents([{ id: (h._id || h.id) as string, studentId: (h.studentId || '') as string, studentName: (h.studentName || '') as string, studentNameBn: (h.studentNameBn || '') as string, class: (h.class || '') as string, roomId: (h.roomId || '') as string, roomNumber: (h.roomNumber || '') as string, bedNumber: (h.bedNumber || '') as string, joinDate: h.joinDate ? new Date(h.joinDate as string).toISOString().split('T')[0] : '', guardianName: (h.guardianName || '') as string, guardianPhone: (h.guardianPhone || '') as string, mealPlan: (h.mealPlan || 'full') as HostelResident['mealPlan'], monthlyFee: (h.monthlyFee || 0) as number, status: (h.status || 'active') as HostelResident['status'] }, ...residents]);
+      if (room) {
+        setRooms(rooms.map((r) => r.id === room.id ? { ...r, occupied: r.occupied + 1, status: r.occupied + 1 >= r.capacity ? 'full' : 'available' } : r));
+      }
+      setNewResident({ studentId: '', studentName: '', studentNameBn: '', class: '', roomId: '', bedNumber: '', guardianName: '', guardianPhone: '', mealPlan: 'full' });
+      setIsAddResidentOpen(false);
+      toast({ title: 'সফল', description: 'আবাসিক যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditRoom = () => {
+  const handleEditRoom = async () => {
     if (!selectedRoom) return;
-    setRooms(rooms.map((r) => (r.id === selectedRoom.id ? selectedRoom : r)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'রুম আপডেট করা হয়েছে' });
+    try {
+      await api.updateHostelRoom(selectedRoom.id, selectedRoom);
+      setRooms(rooms.map((r) => (r.id === selectedRoom.id ? selectedRoom : r)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'রুম আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteRoom = (id: string) => {
-    setRooms(rooms.filter((r) => r.id !== id));
-    toast({ title: 'সফল', description: 'রুম মুছে ফেলা হয়েছে' });
+  const handleDeleteRoom = async (id: string) => {
+    try {
+      await api.deleteHostelRoom(id);
+      setRooms(rooms.filter((r) => r.id !== id));
+      toast({ title: 'সফল', description: 'রুম মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteResident = (id: string) => {
-    const resident = residents.find((r) => r.id === id);
-    if (resident) {
-      setRooms(rooms.map((r) => r.id === resident.roomId ? { ...r, occupied: Math.max(0, r.occupied - 1), status: 'available' } : r));
-    }
-    setResidents(residents.filter((r) => r.id !== id));
-    toast({ title: 'সফল', description: 'আবাসিক সরানো হয়েছে' });
+  const handleDeleteResident = async (id: string) => {
+    try {
+      await api.deleteHostelResident(id);
+      const resident = residents.find((r) => r.id === id);
+      if (resident) {
+        setRooms(rooms.map((r) => r.id === resident.roomId ? { ...r, occupied: Math.max(0, r.occupied - 1), status: 'available' } : r));
+      }
+      setResidents(residents.filter((r) => r.id !== id));
+      toast({ title: 'সফল', description: 'আবাসিক সরানো হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'সরাতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getRoomStatusColor = (status: string) => {
