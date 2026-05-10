@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import api from '@/services/api';
 
 interface Guardian {
   id: string;
@@ -31,16 +32,8 @@ interface Guardian {
   status: 'active' | 'inactive';
 }
 
-const initialGuardians: Guardian[] = [
-  { id: 'GRD-001', name: 'Md. Abdul Rahman', phone: '+880-1711-123456', email: 'rahman@email.com', address: 'Agrabad, Chittagong', occupation: 'Businessman', relation: 'Father', students: [{ id: 'STU-00001', name: 'Tanvir Rahman', class: 'Class 10' }], status: 'active' },
-  { id: 'GRD-002', name: 'Fatima Begum', phone: '+880-1812-234567', email: 'fatima@email.com', address: 'Nasirabad, Chittagong', occupation: 'Doctor', relation: 'Mother', students: [{ id: 'STU-00002', name: 'Nusrat Jahan', class: 'Class 8' }, { id: 'STU-00003', name: 'Sabbir Ahmed', class: 'Class 5' }], status: 'active' },
-  { id: 'GRD-003', name: 'Kamal Hossain', phone: '+880-1911-345678', email: 'kamal@email.com', address: 'Halishahar, Chittagong', occupation: 'Engineer', relation: 'Father', students: [{ id: 'STU-00004', name: 'Rafiq Hossain', class: 'Class 9' }], status: 'active' },
-  { id: 'GRD-004', name: 'Jamal Uddin', phone: '+880-1611-456789', email: 'jamal@email.com', address: 'GEC Circle, Chittagong', occupation: 'Teacher', relation: 'Father', students: [{ id: 'STU-00005', name: 'Imran Uddin', class: 'Class 7' }], status: 'inactive' },
-  { id: 'GRD-005', name: 'Rabeya Khatun', phone: '+880-1511-567890', email: 'rabeya@email.com', address: 'Khulshi, Chittagong', occupation: 'Housewife', relation: 'Mother', students: [{ id: 'STU-00006', name: 'Ayesha Khatun', class: 'Class 6' }], status: 'active' },
-];
-
 const Guardian: React.FC = () => {
-  const [guardians, setGuardians] = useState<Guardian[]>(initialGuardians);
+  const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -49,44 +42,55 @@ const Guardian: React.FC = () => {
   const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
   const [formData, setFormData] = useState<Partial<Guardian>>({});
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getGuardians();
+        const raw = res.data as Record<string, unknown>;
+        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.guardians) ? (raw as Record<string, unknown>).guardians as Record<string, unknown>[] : []);
+        setGuardians(arr.map((g: Record<string, unknown>) => ({ id: (g._id || g.guardianId || g.id) as string, name: (g.name || '') as string, phone: (g.phone || '') as string, email: (g.email || '') as string, address: (g.address || '') as string, occupation: (g.occupation || '') as string, relation: (g.relation || 'Father') as string, students: (g.students || []) as Guardian['students'], status: (g.status || 'active') as Guardian['status'] })));
+      } catch (e) { console.error('Failed to load guardians', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredGuardians = guardians.filter(g => 
     g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     g.phone.includes(searchQuery)
   );
 
-  const handleAdd = () => {
-    const newGuardian: Guardian = {
-      id: `GRD-${String(guardians.length + 1).padStart(3, '0')}`,
-      name: formData.name || '',
-      phone: formData.phone || '',
-      email: formData.email || '',
-      address: formData.address || '',
-      occupation: formData.occupation || '',
-      relation: formData.relation || 'Father',
-      students: [],
-      status: 'active'
-    };
-    setGuardians([...guardians, newGuardian]);
-    setIsAddOpen(false);
-    setFormData({});
-    toast.success('Guardian added successfully');
+  const handleAdd = async () => {
+    try {
+      const res = await api.createGuardian(formData);
+      const g = res.data as Record<string, unknown>;
+      setGuardians([...guardians, { id: (g._id || g.guardianId) as string, name: (g.name || '') as string, phone: (g.phone || '') as string, email: (g.email || '') as string, address: (g.address || '') as string, occupation: (g.occupation || '') as string, relation: (g.relation || 'Father') as string, students: (g.students || []) as Guardian['students'], status: (g.status || 'active') as Guardian['status'] }]);
+      setIsAddOpen(false);
+      setFormData({});
+      toast.success('Guardian added successfully');
+    } catch (e) { toast.error('Failed to add guardian'); }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedGuardian) return;
-    setGuardians(guardians.map(g => g.id === selectedGuardian.id ? { ...g, ...formData } : g));
-    setIsEditOpen(false);
-    setSelectedGuardian(null);
-    setFormData({});
-    toast.success('Guardian updated successfully');
+    try {
+      await api.updateGuardian(selectedGuardian.id, formData);
+      setGuardians(guardians.map(g => g.id === selectedGuardian.id ? { ...g, ...formData } : g));
+      setIsEditOpen(false);
+      setSelectedGuardian(null);
+      setFormData({});
+      toast.success('Guardian updated successfully');
+    } catch (e) { toast.error('Failed to update guardian'); }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedGuardian) return;
-    setGuardians(guardians.filter(g => g.id !== selectedGuardian.id));
-    setIsDeleteOpen(false);
-    setSelectedGuardian(null);
-    toast.success('Guardian deleted successfully');
+    try {
+      await api.deleteGuardian(selectedGuardian.id);
+      setGuardians(guardians.filter(g => g.id !== selectedGuardian.id));
+      setIsDeleteOpen(false);
+      setSelectedGuardian(null);
+      toast.success('Guardian deleted successfully');
+    } catch (e) { toast.error('Failed to delete guardian'); }
   };
 
   return (

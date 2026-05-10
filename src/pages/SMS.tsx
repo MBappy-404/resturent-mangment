@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import {
   Bell,
   FileText,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface SMSTemplate {
   id: string;
@@ -44,53 +45,10 @@ interface SMSHistory {
   type: 'attendance' | 'fee' | 'notice' | 'result' | 'custom';
 }
 
-const initialTemplates: SMSTemplate[] = [
-  {
-    id: '1',
-    name: 'Attendance Alert',
-    nameBn: 'উপস্থিতি সতর্কতা',
-    content: 'প্রিয় অভিভাবক, আপনার সন্তান {student_name} আজ {date} তারিখে স্কুলে অনুপস্থিত ছিল।',
-    type: 'attendance',
-    createdAt: '2024-01-15',
-  },
-  {
-    id: '2',
-    name: 'Fee Reminder',
-    nameBn: 'ফি রিমাইন্ডার',
-    content: 'প্রিয় অভিভাবক, {student_name} এর {month} মাসের ফি {amount} টাকা বকেয়া আছে। অনুগ্রহ করে পরিশোধ করুন।',
-    type: 'fee',
-    createdAt: '2024-01-10',
-  },
-  {
-    id: '3',
-    name: 'Exam Notice',
-    nameBn: 'পরীক্ষার নোটিশ',
-    content: '{exam_name} পরীক্ষা {date} তারিখ থেকে শুরু হবে। সকল শিক্ষার্থীদের সময়মতো উপস্থিত থাকতে হবে।',
-    type: 'notice',
-    createdAt: '2024-01-08',
-  },
-  {
-    id: '4',
-    name: 'Result Published',
-    nameBn: 'ফলাফল প্রকাশ',
-    content: '{student_name} এর {exam_name} পরীক্ষার ফলাফল প্রকাশিত হয়েছে। GPA: {gpa}',
-    type: 'result',
-    createdAt: '2024-01-05',
-  },
-];
-
-const initialHistory: SMSHistory[] = [
-  { id: '1', template: 'Attendance Alert', recipients: 45, sentAt: '2024-01-20 09:30', status: 'sent', type: 'attendance' },
-  { id: '2', template: 'Fee Reminder', recipients: 120, sentAt: '2024-01-19 14:00', status: 'sent', type: 'fee' },
-  { id: '3', template: 'Exam Notice', recipients: 350, sentAt: '2024-01-18 10:00', status: 'sent', type: 'notice' },
-  { id: '4', template: 'Custom Message', recipients: 25, sentAt: '2024-01-17 16:30', status: 'failed', type: 'custom' },
-  { id: '5', template: 'Result Published', recipients: 200, sentAt: '2024-01-16 11:00', status: 'pending', type: 'result' },
-];
-
 const SMS: React.FC = () => {
   const { toast } = useToast();
-  const [templates, setTemplates] = useState<SMSTemplate[]>(initialTemplates);
-  const [history, setHistory] = useState<SMSHistory[]>(initialHistory);
+  const [templates, setTemplates] = useState<SMSTemplate[]>([]);
+  const [history, setHistory] = useState<SMSHistory[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -110,6 +68,24 @@ const SMS: React.FC = () => {
     class: '',
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const tRes = await api.getSMSTemplates();
+        const tRaw = tRes.data as Record<string, unknown>;
+        const tArr = Array.isArray(tRaw) ? tRaw : (Array.isArray((tRaw as Record<string, unknown>)?.templates) ? (tRaw as Record<string, unknown>).templates as Record<string, unknown>[] : []);
+        setTemplates(tArr.map((t: Record<string, unknown>) => ({ id: (t._id || t.id) as string, name: (t.name || '') as string, nameBn: (t.nameBn || '') as string, content: (t.content || '') as string, type: (t.type || 'custom') as SMSTemplate['type'], createdAt: t.createdAt ? new Date(t.createdAt as string).toISOString().split('T')[0] : '' })));
+      } catch (e) { console.error('Failed to load SMS templates', e); }
+      try {
+        const hRes = await api.getSMSHistory();
+        const hRaw = hRes.data as Record<string, unknown>;
+        const hArr = Array.isArray(hRaw) ? hRaw : (Array.isArray((hRaw as Record<string, unknown>)?.history) ? (hRaw as Record<string, unknown>).history as Record<string, unknown>[] : []);
+        setHistory(hArr.map((h: Record<string, unknown>) => ({ id: (h._id || h.id) as string, template: (h.template || '') as string, recipients: (h.recipients || 0) as number, sentAt: (h.sentAt || '') as string, status: (h.status || 'sent') as SMSHistory['status'], type: (h.type || 'custom') as SMSHistory['type'] })));
+      } catch (e) { console.error('Failed to load SMS history', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredTemplates = templates.filter((template) => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       template.nameBn.includes(searchTerm);
@@ -117,52 +93,53 @@ const SMS: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
-  const handleAddTemplate = () => {
+  const handleAddTemplate = async () => {
     if (!newTemplate.name || !newTemplate.content) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const template: SMSTemplate = {
-      id: Date.now().toString(),
-      ...newTemplate,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setTemplates([template, ...templates]);
-    setNewTemplate({ name: '', nameBn: '', content: '', type: 'custom' });
-    setIsAddOpen(false);
-    toast({ title: 'সফল', description: 'টেমপ্লেট যোগ করা হয়েছে' });
+    try {
+      const res = await api.createSMSTemplate(newTemplate);
+      const t = res.data as Record<string, unknown>;
+      setTemplates([{ id: (t._id || t.id) as string, name: (t.name || '') as string, nameBn: (t.nameBn || '') as string, content: (t.content || '') as string, type: (t.type || 'custom') as SMSTemplate['type'], createdAt: t.createdAt ? new Date(t.createdAt as string).toISOString().split('T')[0] : '' }, ...templates]);
+      setNewTemplate({ name: '', nameBn: '', content: '', type: 'custom' });
+      setIsAddOpen(false);
+      toast({ title: 'সফল', description: 'টেমপ্লেট যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'টেমপ্লেট যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEditTemplate = () => {
+  const handleEditTemplate = async () => {
     if (!selectedTemplate) return;
-    setTemplates(templates.map((t) => (t.id === selectedTemplate.id ? selectedTemplate : t)));
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'টেমপ্লেট আপডেট করা হয়েছে' });
+    try {
+      await api.updateSMSTemplate(selectedTemplate.id, selectedTemplate);
+      setTemplates(templates.map((t) => (t.id === selectedTemplate.id ? selectedTemplate : t)));
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'টেমপ্লেট আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDeleteTemplate = (id: string) => {
-    setTemplates(templates.filter((t) => t.id !== id));
-    toast({ title: 'সফল', description: 'টেমপ্লেট মুছে ফেলা হয়েছে' });
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      await api.deleteSMSTemplate(id);
+      setTemplates(templates.filter((t) => t.id !== id));
+      toast({ title: 'সফল', description: 'টেমপ্লেট মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleSendSMS = () => {
+  const handleSendSMS = async () => {
     if (!sendData.templateId) {
       toast({ title: 'ত্রুটি', description: 'টেমপ্লেট নির্বাচন করুন', variant: 'destructive' });
       return;
     }
-    const template = templates.find((t) => t.id === sendData.templateId);
-    const newHistory: SMSHistory = {
-      id: Date.now().toString(),
-      template: template?.name || 'Custom',
-      recipients: Math.floor(Math.random() * 200) + 50,
-      sentAt: new Date().toLocaleString('bn-BD'),
-      status: 'sent',
-      type: template?.type || 'custom',
-    };
-    setHistory([newHistory, ...history]);
-    setIsSendOpen(false);
-    setSendData({ templateId: '', recipientType: 'all', class: '' });
-    toast({ title: 'সফল', description: 'SMS পাঠানো হয়েছে' });
+    try {
+      const template = templates.find((t) => t.id === sendData.templateId);
+      const res = await api.sendSMS({ template: template?.name || 'Custom', recipients: Math.floor(Math.random() * 200) + 50, status: 'sent', type: template?.type || 'custom' });
+      const h = res.data as Record<string, unknown>;
+      setHistory([{ id: (h._id || h.id) as string, template: (h.template || '') as string, recipients: (h.recipients || 0) as number, sentAt: (h.sentAt || new Date().toLocaleString('bn-BD')) as string, status: (h.status || 'sent') as SMSHistory['status'], type: (h.type || 'custom') as SMSHistory['type'] }, ...history]);
+      setIsSendOpen(false);
+      setSendData({ templateId: '', recipientType: 'all', class: '' });
+      toast({ title: 'সফল', description: 'SMS পাঠানো হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'SMS পাঠাতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const handleDeleteHistory = (id: string) => {

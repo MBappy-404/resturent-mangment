@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Plus, 
@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { classes } from '@/data/demoData';
+import api from '@/services/api';
 
 interface DiaryEntry {
   id: string;
@@ -34,16 +35,8 @@ interface DiaryEntry {
   createdBy: string;
 }
 
-const initialEntries: DiaryEntry[] = [
-  { id: 'DRY-001', title: 'Math Homework - Chapter 5', type: 'homework', class: 'Class 10', section: 'A', subject: 'Mathematics', content: 'Complete exercises 5.1 to 5.5 from the textbook. Show all working steps.', dueDate: '2024-12-10', createdAt: '2024-12-05', createdBy: 'Mr. Kamal Hossain' },
-  { id: 'DRY-002', title: 'Science Project', type: 'classwork', class: 'Class 9', section: 'B', subject: 'Science', content: 'Prepare a model on solar system. Materials will be provided by school.', dueDate: '2024-12-15', createdAt: '2024-12-05', createdBy: 'Dr. Nusrat Jahan' },
-  { id: 'DRY-003', title: 'Parent Meeting Notice', type: 'notice', class: 'Class 8', section: 'A', subject: 'General', content: 'Parents are requested to attend the meeting on December 20th at 10:00 AM.', createdAt: '2024-12-04', createdBy: 'Admin Office' },
-  { id: 'DRY-004', title: 'English Essay', type: 'homework', class: 'Class 7', section: 'C', subject: 'English', content: 'Write an essay on "My Favorite Festival" (minimum 200 words).', dueDate: '2024-12-08', createdAt: '2024-12-03', createdBy: 'Mrs. Sarah Khan' },
-  { id: 'DRY-005', title: 'Behavior Remark', type: 'remark', class: 'Class 6', section: 'A', subject: 'General', content: 'Excellent participation in class activities. Keep up the good work!', createdAt: '2024-12-02', createdBy: 'Class Teacher' },
-];
-
 const Diary: React.FC = () => {
-  const [entries, setEntries] = useState<DiaryEntry[]>(initialEntries);
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
@@ -54,6 +47,18 @@ const Diary: React.FC = () => {
   const [selectedEntry, setSelectedEntry] = useState<DiaryEntry | null>(null);
   const [formData, setFormData] = useState<Partial<DiaryEntry>>({});
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.getDiary();
+        const raw = res.data as Record<string, unknown>;
+        const arr = Array.isArray(raw) ? raw : (Array.isArray((raw as Record<string, unknown>)?.entries) ? (raw as Record<string, unknown>).entries as Record<string, unknown>[] : []);
+        setEntries(arr.map((e: Record<string, unknown>) => ({ id: (e._id || e.diaryId || e.id) as string, title: (e.title || '') as string, type: (e.type || 'homework') as DiaryEntry['type'], class: (e.class || '') as string, section: (e.section || '') as string, subject: (e.subject || '') as string, content: (e.content || '') as string, dueDate: e.dueDate ? new Date(e.dueDate as string).toISOString().split('T')[0] : undefined, createdAt: e.createdAt ? new Date(e.createdAt as string).toISOString().split('T')[0] : '', createdBy: (e.createdBy || '') as string })));
+      } catch (e) { console.error('Failed to load diary', e); }
+    };
+    fetchData();
+  }, []);
+
   const filteredEntries = entries.filter(entry => {
     const matchesSearch = entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          entry.content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -62,40 +67,38 @@ const Diary: React.FC = () => {
     return matchesSearch && matchesType && matchesClass;
   });
 
-  const handleAdd = () => {
-    const newEntry: DiaryEntry = {
-      id: `DRY-${String(entries.length + 1).padStart(3, '0')}`,
-      title: formData.title || '',
-      type: formData.type || 'homework',
-      class: formData.class || 'Class 10',
-      section: formData.section || 'A',
-      subject: formData.subject || '',
-      content: formData.content || '',
-      dueDate: formData.dueDate,
-      createdAt: new Date().toISOString().split('T')[0],
-      createdBy: 'Current User'
-    };
-    setEntries([newEntry, ...entries]);
-    setIsAddOpen(false);
-    setFormData({});
-    toast.success('Diary entry added successfully');
+  const handleAdd = async () => {
+    try {
+      const res = await api.createDiaryEntry(formData);
+      const e = res.data as Record<string, unknown>;
+      setEntries([{ id: (e._id || e.diaryId) as string, title: (e.title || '') as string, type: (e.type || 'homework') as DiaryEntry['type'], class: (e.class || '') as string, section: (e.section || '') as string, subject: (e.subject || '') as string, content: (e.content || '') as string, dueDate: e.dueDate ? new Date(e.dueDate as string).toISOString().split('T')[0] : undefined, createdAt: e.createdAt ? new Date(e.createdAt as string).toISOString().split('T')[0] : '', createdBy: (e.createdBy || '') as string }, ...entries]);
+      setIsAddOpen(false);
+      setFormData({});
+      toast.success('Diary entry added successfully');
+    } catch (err) { toast.error('Failed to add diary entry'); }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!selectedEntry) return;
-    setEntries(entries.map(e => e.id === selectedEntry.id ? { ...e, ...formData } : e));
-    setIsEditOpen(false);
-    setSelectedEntry(null);
-    setFormData({});
-    toast.success('Diary entry updated successfully');
+    try {
+      await api.updateDiaryEntry(selectedEntry.id, formData);
+      setEntries(entries.map(e => e.id === selectedEntry.id ? { ...e, ...formData } : e));
+      setIsEditOpen(false);
+      setSelectedEntry(null);
+      setFormData({});
+      toast.success('Diary entry updated successfully');
+    } catch (err) { toast.error('Failed to update diary entry'); }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedEntry) return;
-    setEntries(entries.filter(e => e.id !== selectedEntry.id));
-    setIsDeleteOpen(false);
-    setSelectedEntry(null);
-    toast.success('Diary entry deleted successfully');
+    try {
+      await api.deleteDiaryEntry(selectedEntry.id);
+      setEntries(entries.filter(e => e.id !== selectedEntry.id));
+      setIsDeleteOpen(false);
+      setSelectedEntry(null);
+      toast.success('Diary entry deleted successfully');
+    } catch (err) { toast.error('Failed to delete diary entry'); }
   };
 
   const typeStyles = {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ import {
   Clock,
   CheckCircle,
 } from 'lucide-react';
+import api from '@/services/api';
 
 interface Vehicle {
   id: string;
@@ -60,32 +61,11 @@ interface Driver {
   status: 'active' | 'inactive';
 }
 
-const initialVehicles: Vehicle[] = [
-  { id: '1', number: 'চট্টগ্রাম মেট্রো-ক-১২৩৪', type: 'bus', capacity: 40, driver: 'আবুল হোসেন', driverPhone: '01712345678', helper: 'রফিক', route: 'নাসিরাবাদ রুট', status: 'active' },
-  { id: '2', number: 'চট্টগ্রাম মেট্রো-খ-৫৬৭৮', type: 'microbus', capacity: 15, driver: 'করিম উদ্দিন', driverPhone: '01812345678', helper: 'সালাম', route: 'হালিশহর রুট', status: 'active' },
-  { id: '3', number: 'চট্টগ্রাম মেট্রো-গ-৯০১২', type: 'bus', capacity: 45, driver: 'জাহিদ আলী', driverPhone: '01912345678', helper: 'বাদল', route: 'পাঁচলাইশ রুট', status: 'maintenance' },
-  { id: '4', number: 'চট্টগ্রাম মেট্রো-ঘ-৩৪৫৬', type: 'van', capacity: 10, driver: 'সাইফুল ইসলাম', driverPhone: '01612345678', helper: 'মিলন', route: 'খুলশী রুট', status: 'active' },
-];
-
-const initialRoutes: BusRoute[] = [
-  { id: '1', name: 'Nasirabad Route', nameBn: 'নাসিরাবাদ রুট', stops: ['নাসিরাবাদ', 'জিইসি', 'চকবাজার', 'স্কুল'], vehicleId: '1', departureTime: '07:00', returnTime: '14:00', students: 35, fee: 1500 },
-  { id: '2', name: 'Halishahar Route', nameBn: 'হালিশহর রুট', stops: ['হালিশহর', 'আগ্রাবাদ', 'চকবাজার', 'স্কুল'], vehicleId: '2', departureTime: '07:15', returnTime: '14:15', students: 12, fee: 1200 },
-  { id: '3', name: 'Panchlaish Route', nameBn: 'পাঁচলাইশ রুট', stops: ['পাঁচলাইশ', 'মেহেদীবাগ', 'চকবাজার', 'স্কুল'], vehicleId: '3', departureTime: '07:30', returnTime: '14:30', students: 40, fee: 1800 },
-  { id: '4', name: 'Khulshi Route', nameBn: 'খুলশী রুট', stops: ['খুলশী', 'বায়েজিদ', 'স্কুল'], vehicleId: '4', departureTime: '07:00', returnTime: '14:00', students: 8, fee: 1000 },
-];
-
-const initialDrivers: Driver[] = [
-  { id: '1', name: 'Abul Hossain', nameBn: 'আবুল হোসেন', phone: '01712345678', license: 'CTG-12345', address: 'নাসিরাবাদ, চট্টগ্রাম', experience: 10, status: 'active' },
-  { id: '2', name: 'Karim Uddin', nameBn: 'করিম উদ্দিন', phone: '01812345678', license: 'CTG-23456', address: 'হালিশহর, চট্টগ্রাম', experience: 8, status: 'active' },
-  { id: '3', name: 'Zahid Ali', nameBn: 'জাহিদ আলী', phone: '01912345678', license: 'CTG-34567', address: 'পাঁচলাইশ, চট্টগ্রাম', experience: 12, status: 'active' },
-  { id: '4', name: 'Saiful Islam', nameBn: 'সাইফুল ইসলাম', phone: '01612345678', license: 'CTG-45678', address: 'খুলশী, চট্টগ্রাম', experience: 5, status: 'active' },
-];
-
 const Transport: React.FC = () => {
   const { toast } = useToast();
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-  const [routes, setRoutes] = useState<BusRoute[]>(initialRoutes);
-  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [routes, setRoutes] = useState<BusRoute[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false);
   const [isAddRouteOpen, setIsAddRouteOpen] = useState(false);
@@ -98,69 +78,100 @@ const Transport: React.FC = () => {
   const [newRoute, setNewRoute] = useState({ name: '', nameBn: '', stops: '', vehicleId: '', departureTime: '', returnTime: '', fee: 0 });
   const [newDriver, setNewDriver] = useState({ name: '', nameBn: '', phone: '', license: '', address: '', experience: 0, status: 'active' as Driver['status'] });
 
-  const handleAddVehicle = () => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const vRes = await api.getVehicles();
+        const vRaw = vRes.data as Record<string, unknown>;
+        const vArr = Array.isArray(vRaw) ? vRaw : (Array.isArray((vRaw as Record<string, unknown>)?.vehicles) ? (vRaw as Record<string, unknown>).vehicles as Record<string, unknown>[] : []);
+        setVehicles(vArr.map((v: Record<string, unknown>) => ({ id: (v._id || v.id) as string, number: (v.number || '') as string, type: (v.type || 'bus') as Vehicle['type'], capacity: (v.capacity || 0) as number, driver: (v.driver || '') as string, driverPhone: (v.driverPhone || '') as string, helper: (v.helper || '') as string, route: (v.route || '') as string, status: (v.status || 'active') as Vehicle['status'] })));
+      } catch (e) { console.error('Failed to load vehicles', e); }
+      try {
+        const rRes = await api.getBusRoutes();
+        const rRaw = rRes.data as Record<string, unknown>;
+        const rArr = Array.isArray(rRaw) ? rRaw : (Array.isArray((rRaw as Record<string, unknown>)?.routes) ? (rRaw as Record<string, unknown>).routes as Record<string, unknown>[] : []);
+        setRoutes(rArr.map((r: Record<string, unknown>) => ({ id: (r._id || r.id) as string, name: (r.name || '') as string, nameBn: (r.nameBn || '') as string, stops: (r.stops || []) as string[], vehicleId: (r.vehicleId || '') as string, departureTime: (r.departureTime || '') as string, returnTime: (r.returnTime || '') as string, students: (r.students || 0) as number, fee: (r.fee || 0) as number })));
+      } catch (e) { console.error('Failed to load routes', e); }
+      try {
+        const dRes = await api.getDrivers();
+        const dRaw = dRes.data as Record<string, unknown>;
+        const dArr = Array.isArray(dRaw) ? dRaw : (Array.isArray((dRaw as Record<string, unknown>)?.drivers) ? (dRaw as Record<string, unknown>).drivers as Record<string, unknown>[] : []);
+        setDrivers(dArr.map((d: Record<string, unknown>) => ({ id: (d._id || d.id) as string, name: (d.name || '') as string, nameBn: (d.nameBn || '') as string, phone: (d.phone || '') as string, license: (d.license || '') as string, address: (d.address || '') as string, experience: (d.experience || 0) as number, status: (d.status || 'active') as Driver['status'] })));
+      } catch (e) { console.error('Failed to load drivers', e); }
+    };
+    fetchData();
+  }, []);
+
+  const handleAddVehicle = async () => {
     if (!newVehicle.number || !newVehicle.driver) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const vehicle: Vehicle = { id: Date.now().toString(), ...newVehicle };
-    setVehicles([vehicle, ...vehicles]);
-    setNewVehicle({ number: '', type: 'bus', capacity: 40, driver: '', driverPhone: '', helper: '', route: '', status: 'active' });
-    setIsAddVehicleOpen(false);
-    toast({ title: 'সফল', description: 'যানবাহন যোগ করা হয়েছে' });
+    try {
+      const res = await api.createVehicle(newVehicle);
+      const v = res.data as Record<string, unknown>;
+      setVehicles([{ id: (v._id || v.id) as string, number: (v.number || '') as string, type: (v.type || 'bus') as Vehicle['type'], capacity: (v.capacity || 0) as number, driver: (v.driver || '') as string, driverPhone: (v.driverPhone || '') as string, helper: (v.helper || '') as string, route: (v.route || '') as string, status: (v.status || 'active') as Vehicle['status'] }, ...vehicles]);
+      setNewVehicle({ number: '', type: 'bus', capacity: 40, driver: '', driverPhone: '', helper: '', route: '', status: 'active' });
+      setIsAddVehicleOpen(false);
+      toast({ title: 'সফল', description: 'যানবাহন যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleAddRoute = () => {
+  const handleAddRoute = async () => {
     if (!newRoute.name || !newRoute.nameBn) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const route: BusRoute = {
-      id: Date.now().toString(),
-      name: newRoute.name,
-      nameBn: newRoute.nameBn,
-      stops: newRoute.stops.split(',').map((s) => s.trim()),
-      vehicleId: newRoute.vehicleId,
-      departureTime: newRoute.departureTime,
-      returnTime: newRoute.returnTime,
-      students: 0,
-      fee: newRoute.fee,
-    };
-    setRoutes([route, ...routes]);
-    setNewRoute({ name: '', nameBn: '', stops: '', vehicleId: '', departureTime: '', returnTime: '', fee: 0 });
-    setIsAddRouteOpen(false);
-    toast({ title: 'সফল', description: 'রুট যোগ করা হয়েছে' });
+    try {
+      const routeData = { ...newRoute, stops: newRoute.stops.split(',').map((s) => s.trim()), students: 0 };
+      const res = await api.createBusRoute(routeData);
+      const r = res.data as Record<string, unknown>;
+      setRoutes([{ id: (r._id || r.id) as string, name: (r.name || '') as string, nameBn: (r.nameBn || '') as string, stops: (r.stops || []) as string[], vehicleId: (r.vehicleId || '') as string, departureTime: (r.departureTime || '') as string, returnTime: (r.returnTime || '') as string, students: (r.students || 0) as number, fee: (r.fee || 0) as number }, ...routes]);
+      setNewRoute({ name: '', nameBn: '', stops: '', vehicleId: '', departureTime: '', returnTime: '', fee: 0 });
+      setIsAddRouteOpen(false);
+      toast({ title: 'সফল', description: 'রুট যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleAddDriver = () => {
+  const handleAddDriver = async () => {
     if (!newDriver.name || !newDriver.phone) {
       toast({ title: 'ত্রুটি', description: 'সব ফিল্ড পূরণ করুন', variant: 'destructive' });
       return;
     }
-    const driver: Driver = { id: Date.now().toString(), ...newDriver };
-    setDrivers([driver, ...drivers]);
-    setNewDriver({ name: '', nameBn: '', phone: '', license: '', address: '', experience: 0, status: 'active' });
-    setIsAddDriverOpen(false);
-    toast({ title: 'সফল', description: 'ড্রাইভার যোগ করা হয়েছে' });
+    try {
+      const res = await api.createDriver(newDriver);
+      const d = res.data as Record<string, unknown>;
+      setDrivers([{ id: (d._id || d.id) as string, name: (d.name || '') as string, nameBn: (d.nameBn || '') as string, phone: (d.phone || '') as string, license: (d.license || '') as string, address: (d.address || '') as string, experience: (d.experience || 0) as number, status: (d.status || 'active') as Driver['status'] }, ...drivers]);
+      setNewDriver({ name: '', nameBn: '', phone: '', license: '', address: '', experience: 0, status: 'active' });
+      setIsAddDriverOpen(false);
+      toast({ title: 'সফল', description: 'ড্রাইভার যোগ করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'যোগ করতে ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleEdit = () => {
-    if (editType === 'vehicle') {
-      setVehicles(vehicles.map((v) => (v.id === selectedItem.id ? selectedItem : v)));
-    } else if (editType === 'route') {
-      setRoutes(routes.map((r) => (r.id === selectedItem.id ? selectedItem : r)));
-    } else {
-      setDrivers(drivers.map((d) => (d.id === selectedItem.id ? selectedItem : d)));
-    }
-    setIsEditOpen(false);
-    toast({ title: 'সফল', description: 'আপডেট করা হয়েছে' });
+  const handleEdit = async () => {
+    try {
+      if (editType === 'vehicle') {
+        await api.updateVehicle(selectedItem.id, selectedItem);
+        setVehicles(vehicles.map((v) => (v.id === selectedItem.id ? selectedItem : v)));
+      } else if (editType === 'route') {
+        await api.updateBusRoute(selectedItem.id, selectedItem);
+        setRoutes(routes.map((r) => (r.id === selectedItem.id ? selectedItem : r)));
+      } else {
+        await api.updateDriver(selectedItem.id, selectedItem);
+        setDrivers(drivers.map((d) => (d.id === selectedItem.id ? selectedItem : d)));
+      }
+      setIsEditOpen(false);
+      toast({ title: 'সফল', description: 'আপডেট করা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'আপডেট ব্যর্থ', variant: 'destructive' }); }
   };
 
-  const handleDelete = (type: 'vehicle' | 'route' | 'driver', id: string) => {
-    if (type === 'vehicle') setVehicles(vehicles.filter((v) => v.id !== id));
-    else if (type === 'route') setRoutes(routes.filter((r) => r.id !== id));
-    else setDrivers(drivers.filter((d) => d.id !== id));
-    toast({ title: 'সফল', description: 'মুছে ফেলা হয়েছে' });
+  const handleDelete = async (type: 'vehicle' | 'route' | 'driver', id: string) => {
+    try {
+      if (type === 'vehicle') { await api.deleteVehicle(id); setVehicles(vehicles.filter((v) => v.id !== id)); }
+      else if (type === 'route') { await api.deleteBusRoute(id); setRoutes(routes.filter((r) => r.id !== id)); }
+      else { await api.deleteDriver(id); setDrivers(drivers.filter((d) => d.id !== id)); }
+      toast({ title: 'সফল', description: 'মুছে ফেলা হয়েছে' });
+    } catch (e) { toast({ title: 'ত্রুটি', description: 'মুছতে ব্যর্থ', variant: 'destructive' }); }
   };
 
   const getStatusColor = (status: string) => {
